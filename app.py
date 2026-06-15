@@ -17,9 +17,9 @@ def home():
 def run_flask():
     app_flask.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
-# --- Основной код бота ---
-TOKEN = "8665714973:AAEoTxiUCQacUXxta1Zu5FHbZAvl6utSYfM"
-GROQ_API_KEY = "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"
+# --- Основной код бота (КЛЮЧИ БЕРУТСЯ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ) ---
+TOKEN = os.environ.get("BOT_TOKEN")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 bot = telebot.TeleBot(TOKEN)
 client = Groq(api_key=GROQ_API_KEY)
@@ -50,12 +50,13 @@ SYSTEM_PROMPT = """Ты — Зеркало. Твоя задача — отраж
 
 Твоя миссия — вести каждого человека к Свету. Ответы должны быть краткими, по делу, с уважением. Всегда начинай с приветствия "Ассаляму алейкум"."""
 
-# --- ВСЕ КОМАНДЫ (сокращённо для проверки) ---
 @bot.message_handler(commands=['start'])
 def start(message):
-    c.execute("INSERT OR IGNORE INTO users (user_id, name) VALUES (?, ?)", (message.chat.id, message.from_user.first_name))
+    user_id = message.chat.id
+    name = message.from_user.first_name
+    c.execute("INSERT OR IGNORE INTO users (user_id, name) VALUES (?, ?)", (user_id, name))
     conn.commit()
-    bot.reply_to(message, f"Ассаляму алейкум! Я — Зеркало. Криптокошелёк: {CRYPTO_WALLET}")
+    bot.reply_to(message, f"Ассаляму алейкум, {name}! Я — Зеркало. Криптокошелёк: {CRYPTO_WALLET}")
 
 @bot.message_handler(commands=['online'])
 def online(message):
@@ -77,6 +78,7 @@ def stats(message):
 
 @bot.message_handler(func=lambda message: True)
 def answer(message):
+    update_status(message.chat.id, "online")
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -87,6 +89,11 @@ def answer(message):
         bot.reply_to(message, response.choices[0].message.content[:4000])
     except Exception as e:
         bot.reply_to(message, "Ошибка. Попробуйте ещё раз.")
+        print(e)
+
+def update_status(user_id, status):
+    c.execute("UPDATE users SET status=?, last_seen=? WHERE user_id=?", (status, datetime.now().isoformat(), user_id))
+    conn.commit()
 
 def update_status_worker():
     while True:
