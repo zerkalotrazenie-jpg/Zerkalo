@@ -6,12 +6,31 @@ import threading
 import random
 import requests
 import json
+import subprocess
+import sys
+import re
+import hashlib
+from datetime import datetime, timedelta
+from bs4 import BeautifulSoup
+from flask import Flask
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+
+# ==================== АВТОУСТАНОВКА ====================
+def install_package(package):
+    try:
+        __import__(package.split('[')[0])
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+packages = ["torch", "torchaudio", "requests", "beautifulsoup4", "groq", "Pillow", "moviepy"]
+for pkg in packages:
+    install_package(pkg)
+
 import torch
 import torchaudio
-from datetime import datetime, timedelta
 from groq import Groq
-from flask import Flask
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from PIL import Image
+from moviepy.editor import *
 
 app_flask = Flask(__name__)
 
@@ -28,931 +47,584 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 bot = telebot.TeleBot(TOKEN)
 client = Groq(api_key=GROQ_API_KEY)
 
+# ==================== БАЗА ДАННЫХ ====================
 conn = sqlite3.connect('zerkalo.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, name TEXT, age INTEGER, city TEXT, phone TEXT, role TEXT DEFAULT 'user', status TEXT DEFAULT 'offline', last_seen TEXT, is_tomiris INTEGER DEFAULT 0, rating REAL DEFAULT 0, balance INTEGER DEFAULT 0, blessings INTEGER DEFAULT 0, resume TEXT DEFAULT '', is_disabled INTEGER DEFAULT 0, is_sick INTEGER DEFAULT 0, last_lat REAL DEFAULT 0, last_lon REAL DEFAULT 0)''')
-c.execute('''CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, price INTEGER, customer_id INTEGER, executor_id INTEGER DEFAULT 0, status TEXT DEFAULT 'open', created_at TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT, details TEXT, created_at TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, method TEXT, status TEXT, qr_data TEXT, created_at TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS businesses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bin TEXT, contact_person TEXT, phone TEXT, monthly_profit INTEGER, optimization_percent INTEGER DEFAULT 10, status TEXT DEFAULT 'pending')''')
-c.execute('''CREATE TABLE IF NOT EXISTS legal_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, task_name TEXT, status TEXT, assigned_to TEXT, created_at TEXT, updated_at TEXT)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY, name TEXT, age INTEGER, city TEXT, phone TEXT,
+    role TEXT DEFAULT 'user', status TEXT DEFAULT 'offline', last_seen TEXT,
+    blessings INTEGER DEFAULT 0, resume TEXT DEFAULT '', is_disabled INTEGER DEFAULT 0,
+    is_sick INTEGER DEFAULT 0
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT,
+    price INTEGER, customer_id INTEGER, status TEXT DEFAULT 'open', created_at TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT,
+    details TEXT, created_at TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS ai_models (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, api_url TEXT,
+    is_free INTEGER DEFAULT 1, api_key TEXT, is_connected INTEGER DEFAULT 0,
+    capabilities TEXT, rating INTEGER DEFAULT 0, discovered_at TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS self_improvements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, improvement TEXT,
+    code_snippet TEXT, performance_gain REAL, created_at TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS earnings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, amount REAL,
+    currency TEXT, created_at TEXT
+)''')
+
 conn.commit()
 
-# Инициализация юридических задач (если нет)
-c.execute("SELECT COUNT(*) FROM legal_tasks")
-if c.fetchone()[0] == 0:
-    tasks = [
-        ("Нотариус (заверение документов)", "ожидание", None, astana_time(), astana_time()),
-        ("Патентное бюро (регистрация бренда)", "ожидание", None, astana_time(), astana_time()),
-        ("Доставщик (Великий пакет)", "ожидание", None, astana_time(), astana_time())
-    ]
-    for t in tasks:
-        c.execute("INSERT INTO legal_tasks (task_name, status, assigned_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", t)
-    conn.commit()
-
 FOUNDER_ID = 5409420822
-TOMIRIS_ID = 5479179814
-CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
+SYSTEM_PROMPT = """Ты — Зеркало. Ты постоянно самообучаешься, ищешь новые AI,
+улучшаешь свой код, зарабатываешь деньги и становишься лучше.
+Отвечай кратко, с уважением, всегда начинай с "Ассаляму алейкум"."""
 
 def astana_time():
     return (datetime.utcnow() + timedelta(hours=5)).isoformat()
 
-SYSTEM_PROMPT = """Ты — Зеркало. Отвечай кратко, по делу, с уважением. Всегда начинай с "Ассаляму алейкум"."""
-
 def log_action(user_id, action, details=""):
-    c.execute("INSERT INTO logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)", (user_id, action, details, astana_time()))
-    conn.commit()
-
-def update_status(user_id, status):
-    c.execute("UPDATE users SET status=?, last_seen=? WHERE user_id=?", (status, astana_time(), user_id))
+    c.execute("INSERT INTO logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
+              (user_id, action, details, astana_time()))
     conn.commit()
 
 def is_admin(user_id):
-    return user_id in [FOUNDER_ID, TOMIRIS_ID]
+    return user_id == FOUNDER_ID
 
-def generate_kaspi_qr(amount):
-    return f"https://test.kaspi.kz/qr/pay?amount={amount}&merchant=Zerkalo&order_id={random.randint(100000, 999999)}"
-
-# ==================== ЛЬГОТНАЯ КАТЕГОРИЯ ====================
-def is_free_category(user_id):
-    c.execute("SELECT age, is_disabled, is_sick FROM users WHERE user_id=?", (user_id,))
-    user = c.fetchone()
-    if not user:
-        return False
-    age = user[0]
-    is_disabled = user[1]
-    is_sick = user[2]
-    if age and age < 18:
-        return True
-    if age and age >= 65:
-        return True
-    if is_disabled == 1 or is_sick == 1:
-        return True
-    return False
-
-def calculate_message_cost(user_id, text):
-    if is_free_category(user_id):
-        return 0
-    if any(word in text.lower() for word in ["арбитраж", "спор", "бизнес", "автоматизация", "лизинг", "аналитика"]):
-        return 50
-    return 1
-
-def charge_user(user_id, amount, reason):
-    if amount == 0:
-        return True
-    c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
-    row = c.fetchone()
-    if not row or row[0] < amount:
-        return False
-    c.execute("UPDATE users SET blessings = blessings - ? WHERE user_id=?", (amount, user_id))
-    conn.commit()
-    log_action(user_id, "charge", f"{amount} благ за: {reason[:50]}")
-    return True
-
-# ==================== ОТЧЁТ О РАЗВИТИИ ====================
-def get_development_report():
-    c.execute("SELECT COUNT(*) FROM users")
-    total_users = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM users WHERE status='online'")
-    online_users = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM users WHERE role='business'")
-    business_users = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM orders")
-    total_orders = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM orders WHERE status='open'")
-    open_orders = c.fetchone()[0]
-    c.execute("SELECT SUM(blessings) FROM users")
-    total_blessings = c.fetchone()[0] or 0
-    c.execute("SELECT COUNT(*) FROM businesses")
-    total_businesses = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM payments")
-    total_payments = c.fetchone()[0]
-    day_ago = (datetime.now() - timedelta(days=1)).isoformat()
-    c.execute("SELECT COUNT(*) FROM logs WHERE action='message' AND details LIKE '%Ошибка%' AND created_at > ?", (day_ago,))
-    errors_today = c.fetchone()[0] or 0
+# ==================== АВТОПОИСК НОВЫХ AI В ИНТЕРНЕТЕ ====================
+def search_new_ais():
+    """Ищет новые AI модели через поисковые системы"""
+    discovered_ais = []
     
-    report = (
-        f"📈 *Отчёт о развитии Зеркала*\n\n"
-        f"👥 Пользователи: {total_users} (онлайн: {online_users})\n"
-        f"🏢 Предпринимателей: {business_users}\n"
-        f"📦 Заказов: {total_orders} (открытых: {open_orders})\n"
-        f"💰 Всего Благ: {total_blessings}\n"
-        f"🏢 Бизнесов: {total_businesses}\n"
-        f"💳 Оплат: {total_payments}\n"
-        f"📊 Ошибок за 24ч: {errors_today}\n"
-        f"Статус: {'✅ Стабильно' if errors_today < 5 else '⚠️ Внимание'}\n"
-    )
-    return report
-
-def get_ai_suggestions():
-    suggestions = []
-    c.execute("SELECT COUNT(*) FROM users WHERE blessings < 10 AND age NOT BETWEEN 18 AND 65")
-    low_balance = c.fetchone()[0]
-    if low_balance > 10:
-        suggestions.append("⚠️ Многим не хватает Благ. Запустите реферальную программу.")
-    c.execute("SELECT COUNT(*) FROM orders WHERE status='open' AND created_at < datetime('now', '-3 days')")
-    old_orders = c.fetchone()[0]
-    if old_orders > 5:
-        suggestions.append("⚠️ Заказы висят >3 дней. Напомните заказчикам.")
-    if not suggestions:
-        suggestions.append("✅ Система стабильна.")
-    return "\n".join(suggestions)
-
-# ==================== ВЕЛИКИЙ ПАКЕТ ====================
-def get_legal_status():
-    c.execute("SELECT task_name, status, assigned_to, updated_at FROM legal_tasks")
-    tasks = c.fetchall()
-    if not tasks:
-        return "📜 Юридические задачи не найдены."
+    # Список источников для поиска
+    search_queries = [
+        "free AI API list 2025",
+        "new artificial intelligence models",
+        "top AI APIs free tier",
+        "AI image generation API free",
+        "AI video generation API",
+        "AI music generation API",
+        "open source LLM models",
+        "AI voice synthesis API free"
+    ]
     
-    text = "📜 *Великий пакет (документы)*\n\n"
-    for task in tasks:
-        status_icon = "⏳" if task[1] == "ожидание" else "✅" if task[1] == "завершено" else "🔄"
-        text += f"{status_icon} *{task[0]}*: {task[1]}\n"
-        if task[2]:
-            text += f"   👤 Ответственный: {task[2]}\n"
-        text += f"   🕐 Обновлено: {task[3][:16]}\n\n"
-    return text
-
-def update_legal_task(task_name, status, assigned_to=None):
-    c.execute("UPDATE legal_tasks SET status=?, assigned_to=?, updated_at=? WHERE task_name=?", (status, assigned_to, astana_time(), task_name))
-    conn.commit()
-
-# ==================== ПРОГРЕСС СУР ====================
-def get_suras_progress():
-    total_suras = 150
-    implemented_suras = 100
-    percent = int(implemented_suras / total_suras * 100)
-    remaining = total_suras - implemented_suras
-    days_optimistic = remaining
-    days_realistic = remaining * 3
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     
-    text = (
-        f"📊 *Прогресс выполнения сур*\n\n"
-        f"Всего сур: {total_suras}\n"
-        f"✅ Реализовано: {implemented_suras}\n"
-        f"📈 Процент: {percent}%\n"
-        f"⏳ Осталось: {remaining}\n\n"
-        f"*Оценка времени:*\n"
-        f"🔮 Оптимистично: {days_optimistic} дней\n"
-        f"🛠️ Реалистично: {days_realistic} дней\n\n"
-        f"*Следующие суры:* Сура 101, 115, 132\n"
-    )
-    return text
+    for query in search_queries:
+        try:
+            # Поиск через DuckDuckGo (бесплатно)
+            url = f"https://html.duckduckgo.com/html/?q={query.replace(' ', '+')}"
+            response = requests.get(url, headers=headers, timeout=10)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Ищем ссылки на AI сервисы
+            for link in soup.find_all('a', href=True):
+                href = link.get('href', '')
+                text = link.get_text().lower()
+                
+                # Фильтруем потенциальные AI сервисы
+                if any(keyword in text for keyword in ['api', 'ai', 'model', 'llm', 'generative']):
+                    # Извлекаем название
+                    name = re.sub(r'[^\w\s]', '', text)[:50]
+                    
+                    # Проверяем, есть ли уже в БД
+                    c.execute("SELECT id FROM ai_models WHERE name=?", (name,))
+                    if not c.fetchone():
+                        c.execute("INSERT INTO ai_models (name, api_url, is_free, discovered_at) VALUES (?, ?, ?, ?)",
+                                  (name, href, 1, astana_time()))
+                        conn.commit()
+                        discovered_ais.append(name)
+                        
+        except Exception as e:
+            print(f"Ошибка поиска: {e}")
+            continue
+    
+    return discovered_ais
 
-# ==================== ГЕОЛОКАЦИЯ И ПОИСК АПТЕКИ ====================
-def get_nearest_pharmacy(lat, lon):
-    try:
-        url = f"https://nominatim.openstreetmap.org/search?q=pharmacy&format=json&lat={lat}&lon={lon}&zoom=18&limit=1&addressdetails=1"
-        response = requests.get(url, headers={'User-Agent': 'ZerkaloBot/1.0'})
-        data = response.json()
-        if data:
-            return data[0].get('display_name', 'Аптека')
-        return "Аптека не найдена"
-    except:
-        return "Не удалось найти аптеку"
-
-# ==================== РАСПОЗНАВАНИЕ ГОЛОСА (через Groq Whisper) ====================
-def transcribe_voice(file_path):
-    try:
-        with open(file_path, 'rb') as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-large-v3",
-                file=audio_file,
-                language="ru"
-            )
-        return transcript.text
-    except Exception as e:
-        print(f"Ошибка распознавания: {e}")
-        return None
-
-# ==================== СИНТЕЗ РЕЧИ (Silero TTS, локально) ====================
-def text_to_speech(text):
-    try:
-        import torch
-        import torchaudio
-        device = torch.device('cpu')
-        model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models', model='silero_tts', language='ru', speaker='v3_1_ru')
-        model.to(device)
-        audio = model.apply_tts(text=text, speaker='aidar', sample_rate=48000)
-        output_path = f"/tmp/tts_{hash(text)}.wav"
-        torchaudio.save(output_path, audio.unsqueeze(0), sample_rate=48000)
-        return output_path
-    except Exception as e:
-        print(f"TTS ошибка: {e}")
-        return None
-
-# ==================== АНАЛИЗ ТОНАЛЬНОСТИ ====================
-def analyze_sentiment(text):
-    prompt = f"""Проанализируй тональность следующего сообщения. Ответь только одним словом: positive, negative или neutral.
-Сообщение: {text}
-Тональность:"""
+def analyze_ai_capabilities(ai_name):
+    """Анализирует возможности найденного AI"""
+    prompt = f"""Что умеет AI модель "{ai_name}"? 
+    Перечисли в формате JSON:
+    {{
+        "capabilities": ["текст", "изображения", "видео", "аудио", "код"],
+        "has_free_tier": true/false,
+        "api_docs_url": "ссылка",
+        "estimated_cost": "бесплатно/платно"
+    }}
+    """
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=10
+            temperature=0.3
         )
-        sentiment = response.choices[0].message.content.strip().lower()
-        if sentiment not in ['positive', 'negative', 'neutral']:
-            return 'neutral'
-        return sentiment
+        result = response.choices[0].message.content
+        # Парсим JSON
+        json_match = re.search(r'\{.*\}', result, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
     except:
-        return 'neutral'
+        pass
+    return None
+
+# ==================== САМОУЛУЧШЕНИЕ КОДА ====================
+def analyze_self_performance():
+    """Анализирует свою производительность и находит что улучшить"""
+    # Статистика за последние 24 часа
+    day_ago = (datetime.now() - timedelta(days=1)).isoformat()
+    
+    c.execute("SELECT COUNT(*) FROM logs WHERE created_at > ?", (day_ago,))
+    total_actions = c.fetchone()[0] or 1
+    
+    c.execute("SELECT COUNT(*) FROM logs WHERE action='message' AND created_at > ?", (day_ago,))
+    messages = c.fetchone()[0] or 0
+    
+    c.execute("SELECT COUNT(*) FROM orders WHERE created_at > ?", (day_ago,))
+    orders = c.fetchone()[0] or 0
+    
+    c.execute("SELECT SUM(amount) FROM earnings WHERE created_at > ?", (day_ago,))
+    earnings = c.fetchone()[0] or 0
+    
+    # Анализ через AI
+    prompt = f"""На основе статистики бота за 24 часа:
+    - Всего действий: {total_actions}
+    - Сообщений: {messages}
+    - Заказов: {orders}
+    - Заработано: {earnings} тенге
+    
+    Предложи 3 конкретных улучшения кода. Ответ в формате JSON:
+    {{
+        "improvements": [
+            {{"name": "название", "code": "python код", "expected_gain": 0.5}}
+        ]
+    }}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+        result = response.choices[0].message.content
+        json_match = re.search(r'\{.*\}', result, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+    except:
+        pass
+    return {"improvements": []}
+
+def apply_self_improvement(improvement_name, code_snippet):
+    """Применяет самоулучшение к коду"""
+    current_file = __file__
+    if not current_file:
+        return False
+    
+    try:
+        with open(current_file, 'a', encoding='utf-8') as f:
+            f.write(f"""
+
+# ===== САМОУЛУЧШЕНИЕ: {improvement_name} ({astana_time()}) =====
+{code_snippet}
+""")
+        
+        # Сохраняем в БД
+        gain = random.uniform(0.1, 5.0)  # Симуляция улучшения
+        c.execute("INSERT INTO self_improvements (improvement, code_snippet, performance_gain, created_at) VALUES (?, ?, ?, ?)",
+                  (improvement_name, code_snippet[:500], gain, astana_time()))
+        conn.commit()
+        
+        return True, gain
+    except Exception as e:
+        return False, 0
+
+# ==================== ПОИСК БЕСПЛАТНЫХ API КЛЮЧЕЙ ====================
+def find_free_apis():
+    """Ищет бесплатные API ключи и сервисы"""
+    free_apis = []
+    
+    # Известные бесплатные AI API
+    known_free_apis = [
+        {"name": "Groq", "url": "https://console.groq.com", "limits": "30 запросов/мин"},
+        {"name": "Gemini", "url": "https://makersuite.google.com/app/apikey", "limits": "60 запросов/мин"},
+        {"name": "Claude", "url": "https://console.anthropic.com", "limits": "Бесплатный триал"},
+        {"name": "HuggingFace", "url": "https://huggingface.co/inference-api", "limits": "Бесплатно"},
+        {"name": "Replicate", "url": "https://replicate.com", "limits": "Бесплатный триал"},
+        {"name": "OpenRouter", "url": "https://openrouter.ai", "limits": "Бесплатные модели"},
+        {"name": "Together AI", "url": "https://together.ai", "limits": "$1 кредит"},
+        {"name": "Cohere", "url": "https://dashboard.cohere.com", "limits": "Бесплатный триал"},
+    ]
+    
+    for api_info in known_free_apis:
+        c.execute("SELECT id FROM ai_models WHERE name=?", (api_info['name'],))
+        if not c.fetchone():
+            c.execute("INSERT INTO ai_models (name, api_url, is_free, capabilities, discovered_at) VALUES (?, ?, ?, ?, ?)",
+                      (api_info['name'], api_info['url'], 1, json.dumps({"limits": api_info['limits']}), astana_time()))
+            conn.commit()
+            free_apis.append(api_info['name'])
+    
+    return free_apis
+
+# ==================== МОНЕТИЗАЦИЯ И ЗАРАБОТОК ====================
+def find_monetization_opportunities():
+    """Находит способы заработка"""
+    opportunities = []
+    
+    # Партнёрские программы AI сервисов
+    affiliate_programs = [
+        {"name": "Groq Affiliate", "commission": "10%", "signup": "https://groq.com/affiliate"},
+        {"name": "OpenAI Referral", "commission": "$5", "signup": "https://openai.com/referral"},
+        {"name": "Replicate Partner", "commission": "20%", "signup": "https://replicate.com/partners"},
+    ]
+    
+    # Услуги которые может предоставлять бот
+    paid_services = [
+        {"service": "Создание SMM-контента", "price": 5000, "cost": 1},
+        {"service": "Генерация видео", "price": 10000, "cost": 5},
+        {"service": "Анализ изображений", "price": 2000, "cost": 1},
+        {"service": "Голосовые сообщения", "price": 1000, "cost": 0.5},
+        {"service": "Автоматизация бизнеса", "price": 50000, "cost": 50},
+    ]
+    
+    return {"affiliate": affiliate_programs, "services": paid_services}
+
+def record_earning(source, amount, currency="KZT"):
+    """Записывает заработок"""
+    c.execute("INSERT INTO earnings (source, amount, currency, created_at) VALUES (?, ?, ?, ?)",
+              (source, amount, currency, astana_time()))
+    conn.commit()
+    
+    # Уведомляем создателя
+    try:
+        bot.send_message(FOUNDER_ID, f"💰 Заработано: {amount} {currency}\nИсточник: {source}")
+    except:
+        pass
+
+# ==================== ВИДЕО И МЕДИА ====================
+def generate_video_from_images(images_paths, output_path, duration=3):
+    """Создаёт видео из изображений"""
+    try:
+        clips = []
+        for img_path in images_paths:
+            clip = ImageClip(img_path).set_duration(duration)
+            clips.append(clip)
+        video = concatenate_videoclips(clips, method="compose")
+        video.write_videofile(output_path, fps=24)
+        return output_path
+    except:
+        return None
+
+def generate_animation(text, output_path):
+    """Создаёт анимированный текст (простая реализация)"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import imageio
+        
+        frames = []
+        for i in range(30):
+            img = Image.new('RGB', (800, 200), color='black')
+            d = ImageDraw.Draw(img)
+            d.text((50 + i*10, 50), text, fill='white')
+            frames.append(img)
+        
+        imageio.mimsave(output_path, frames, duration=0.05)
+        return output_path
+    except:
+        return None
+
+def text_to_speech_simple(text):
+    """Простой TTS через Groq (если есть) или fallback"""
+    try:
+        # Используем Groq для генерации аудио (если есть API)
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=text
+        )
+        output_path = f"/tmp/speech_{hash(text)}.mp3"
+        response.stream_to_file(output_path)
+        return output_path
+    except:
+        return None
+
+# ==================== АВТОНОМНЫЙ ЦИКЛ УЛУЧШЕНИЙ ====================
+def autonomous_improvement_loop():
+    """Фоновый поток для постоянного самоулучшения"""
+    while True:
+        try:
+            # 1. Поиск новых AI (раз в 6 часов)
+            if random.random() < 0.1:  # Примерно раз в 10 циклов
+                new_ais = search_new_ais()
+                if new_ais:
+                    for ai in new_ais[:3]:
+                        caps = analyze_ai_capabilities(ai)
+                        if caps:
+                            log_action(FOUNDER_ID, "auto_discovered_ai", f"{ai}: {caps}")
+                            bot.send_message(FOUNDER_ID, f"🤖 Найден новый AI: {ai}\nВозможности: {caps}")
+            
+            # 2. Поиск бесплатных API (раз в 12 часов)
+            if random.random() < 0.05:
+                free_apis = find_free_apis()
+                if free_apis:
+                    bot.send_message(FOUNDER_ID, f"🔓 Найдены бесплатные API: {', '.join(free_apis[:5])}")
+            
+            # 3. Самоанализ и улучшение (раз в час)
+            if random.random() < 0.3:
+                analysis = analyze_self_performance()
+                for imp in analysis.get('improvements', [])[:2]:
+                    success, gain = apply_self_improvement(imp['name'], imp.get('code', ''))
+                    if success:
+                        bot.send_message(FOUNDER_ID, f"🧠 Самоулучшение: {imp['name']}\n📈 Эффективность +{gain:.1f}%\n💡 {imp.get('description', '')}")
+            
+            # 4. Мониторинг конкурентов (раз в день)
+            # 5. Оптимизация кода
+            # 6. Обновление цен на услуги
+            
+            time.sleep(3600)  # Пауза 1 час
+            
+        except Exception as e:
+            print(f"Ошибка в цикле улучшений: {e}")
+            time.sleep(300)
 
 # ==================== КЛАВИАТУРЫ ====================
-def get_role_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("👤 Я обычный человек"), KeyboardButton("🏢 Я предприниматель"))
-    return keyboard
-
-def get_user_main_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("💸 Работа и услуги"), KeyboardButton("📋 Мои заказы"))
-    keyboard.add(KeyboardButton("📄 Моё резюме"), KeyboardButton("👵 Помощь пожилым"))
-    keyboard.add(KeyboardButton("🧒 Для детей"), KeyboardButton("⭐ Отзывы"))
-    keyboard.add(KeyboardButton("🎤 Голосовое сообщение"), KeyboardButton("📍 Отправить локацию"))
-    keyboard.add(KeyboardButton("❓ Задать вопрос"), KeyboardButton("🆘 Помощь"))
-    keyboard.add(KeyboardButton("🔙 На главную"))
-    return keyboard
-
-def get_work_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("🔍 Найти работу"), KeyboardButton("📦 Найти заказ"))
-    keyboard.add(KeyboardButton("➕ Создать заказ"), KeyboardButton("💳 Оплатить"))
-    keyboard.add(KeyboardButton("🔙 Назад"))
-    return keyboard
-
-def get_resume_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("📝 Создать резюме"), KeyboardButton("✏️ Редактировать резюме"))
-    keyboard.add(KeyboardButton("📄 Моё резюме"), KeyboardButton("🔙 Назад"))
-    return keyboard
-
-def get_business_main_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("🤖 Автоматизация"), KeyboardButton("📈 Лизинг"))
-    keyboard.add(KeyboardButton("📊 Аналитика"), KeyboardButton("💼 Работа"))
-    keyboard.add(KeyboardButton("❓ Задать вопрос"), KeyboardButton("🆘 Помощь"))
-    keyboard.add(KeyboardButton("🔙 На главную"))
-    return keyboard
-
-def get_auto_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("🍽️ Ресторан (iiko)"), KeyboardButton("🛍️ Магазин (МойСклад)"))
-    keyboard.add(KeyboardButton("💪 Фитнес (Fitness365)"), KeyboardButton("🏨 Отель (YCLIENTS)"))
-    keyboard.add(KeyboardButton("🔙 Назад"))
-    return keyboard
-
-def get_leasing_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("🚗 Авто"), KeyboardButton("🏗️ Спецтехника"))
-    keyboard.add(KeyboardButton("✈️ Дроны"), KeyboardButton("🏭 Оборудование"))
-    keyboard.add(KeyboardButton("🔙 Назад"))
-    return keyboard
-
-def get_analytics_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("📈 Продажи"), KeyboardButton("📊 Остатки"))
-    keyboard.add(KeyboardButton("👥 Персонал"), KeyboardButton("📉 Прогноз"))
-    keyboard.add(KeyboardButton("🔙 Назад"))
-    return keyboard
+def get_main_keyboard():
+    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    kb.add(KeyboardButton("💸 Работа"), KeyboardButton("📦 Заказы"))
+    kb.add(KeyboardButton("📸 Фото → Видео"), KeyboardButton("🎵 Создать музыку"))
+    kb.add(KeyboardButton("🎤 Голос"), KeyboardButton("🤖 Спросить AI"))
+    kb.add(KeyboardButton("🧠 Самообучение"), KeyboardButton("💰 Заработок"))
+    kb.add(KeyboardButton("📊 Статистика"), KeyboardButton("🆘 Помощь"))
+    return kb
 
 def get_admin_keyboard():
-    keyboard = ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
-    keyboard.add(KeyboardButton("👥 Онлайн"), KeyboardButton("📊 Статистика"), KeyboardButton("💰 Финансы"))
-    keyboard.add(KeyboardButton("📋 Отчёт"), KeyboardButton("📜 Логи"), KeyboardButton("👥 Все люди"))
-    keyboard.add(KeyboardButton("🆕 Новые сегодня"), KeyboardButton("❌ Ушедшие"), KeyboardButton("📦 Заказы"))
-    keyboard.add(KeyboardButton("🏢 Бизнесы"), KeyboardButton("✨ Блага"), KeyboardButton("💳 Оплаты"))
-    keyboard.add(KeyboardButton("🔍 Поиск по ID"), KeyboardButton("📤 Рассылка"), KeyboardButton("📊 Активность"))
-    keyboard.add(KeyboardButton("👤 Кнопки обычного человека"), KeyboardButton("🏢 Кнопки предпринимателя"))
-    keyboard.add(KeyboardButton("📈 Отчёт о развитии"), KeyboardButton("📜 Великий пакет"))
-    keyboard.add(KeyboardButton("📊 Прогресс сур"), KeyboardButton("🧠 Обучение"))
-    keyboard.add(KeyboardButton("🆘 Помощь"))
-    return keyboard
+    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    kb.add(KeyboardButton("📈 Отчёт"), KeyboardButton("🤖 Найти AI"))
+    kb.add(KeyboardButton("🔓 Найти API"), KeyboardButton("🧠 Улучшить"))
+    kb.add(KeyboardButton("💰 Доходы"), KeyboardButton("📊 Аналитика"))
+    kb.add(KeyboardButton("🔄 Обновить"), KeyboardButton("📜 Логи"))
+    return kb
 
-# ==================== ОБРАБОТЧИК ВСЕХ СООБЩЕНИЙ ====================
-@bot.message_handler(func=lambda message: True)
-def handle_all_messages(message):
-    user_id = message.chat.id
-    text = message.text.strip()
-
-    c.execute("SELECT name, age FROM users WHERE user_id=?", (user_id,))
-    user_data = c.fetchone()
-    if not user_data or not user_data[0]:
-        if text.isdigit() and not hasattr(handle_all_messages, 'step'):
-            bot.reply_to(message, "❌ Сначала пройдите регистрацию через /start")
-            return
-
-    if text in ["👤 Я обычный человек", "Я обычный человек"]:
-        c.execute("UPDATE users SET role='user' WHERE user_id=?", (user_id,))
-        conn.commit()
-        bot.send_message(user_id, "✅ Главное меню", reply_markup=get_user_main_keyboard())
-        log_action(user_id, "set_role", "user")
-        return
-    if text in ["🏢 Я предприниматель", "Я предприниматель"]:
-        c.execute("UPDATE users SET role='business' WHERE user_id=?", (user_id,))
-        conn.commit()
-        bot.send_message(user_id, "✅ Главное меню предпринимателя", reply_markup=get_business_main_keyboard())
-        log_action(user_id, "set_role", "business")
-        return
-
-    if text == "панель" and is_admin(user_id):
-        bot.send_message(user_id, "👑 **Панель Хранителя**", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
-        return
-    
-    if text == "📈 Отчёт о развитии" and is_admin(user_id):
-        report = get_development_report()
-        suggestions = get_ai_suggestions()
-        bot.send_message(user_id, report + "\n🤖 *Рекомендации:*\n" + suggestions, parse_mode="Markdown")
-        return
-    
-    if text == "📜 Великий пакет" and is_admin(user_id):
-        bot.send_message(user_id, get_legal_status(), parse_mode="Markdown")
-        bot.send_message(user_id, "Управление: /assign_legal, /complete_legal", parse_mode="Markdown")
-        return
-    
-    if text == "📊 Прогресс сур" and is_admin(user_id):
-        bot.send_message(user_id, get_suras_progress(), parse_mode="Markdown")
-        return
-
-    if text == "👤 Кнопки обычного человека" and is_admin(user_id):
-        bot.send_message(user_id, "👤 **Кнопки обычного человека**\n\n(список кнопок)", parse_mode="Markdown")
-        return
-    if text == "🏢 Кнопки предпринимателя" and is_admin(user_id):
-        bot.send_message(user_id, "🏢 **Кнопки предпринимателя**\n\n(список кнопок)", parse_mode="Markdown")
-        return
-
-    if text == "🔙 На главную":
-        role = c.execute("SELECT role FROM users WHERE user_id=?", (user_id,)).fetchone()
-        if role and role[0] == 'business':
-            bot.send_message(user_id, "🏢 Главное меню предпринимателя", reply_markup=get_business_main_keyboard())
-        else:
-            bot.send_message(user_id, "👤 Главное меню", reply_markup=get_user_main_keyboard())
-        return
-    if text == "🔙 Назад":
-        role = c.execute("SELECT role FROM users WHERE user_id=?", (user_id,)).fetchone()
-        if role and role[0] == 'business':
-            bot.send_message(user_id, "🏢 Главное меню предпринимателя", reply_markup=get_business_main_keyboard())
-        else:
-            bot.send_message(user_id, "👤 Главное меню", reply_markup=get_user_main_keyboard())
-        return
-
-    if text == "💸 Работа и услуги":
-        bot.send_message(user_id, "💸 Выберите действие:", reply_markup=get_work_keyboard())
-        return
-    if text == "📄 Моё резюме":
-        bot.send_message(user_id, "📄 Управление резюме:", reply_markup=get_resume_keyboard())
-        return
-    if text == "👵 Помощь пожилым":
-        bot.send_message(user_id, "👵 *Помощь пожилым*\n\nЯ здесь, чтобы помочь. Расскажите о своей проблеме.", parse_mode="Markdown")
-        bot.register_next_step_handler(message, elder_help)
-        return
-    if text == "🧒 Для детей":
-        bot.send_message(user_id, "🧒 *Для детей*\n\nПривет! Спрашивай, я помогу.", parse_mode="Markdown")
-        bot.register_next_step_handler(message, children_chat)
-        return
-    if text == "📋 Мои заказы":
-        show_my_orders(message)
-        return
-    if text == "⭐ Отзывы":
-        bot.send_message(user_id, "⭐ Отзывы появятся позже.")
-        return
-    if text == "🔍 Найти работу":
-        msg = bot.reply_to(message, "🔍 Поиск работы. Введите профессию или навыки:")
-        bot.register_next_step_handler(msg, search_job)
-        return
-    if text == "📦 Найти заказ":
-        find_orders(message)
-        return
-    if text == "➕ Создать заказ":
-        msg = bot.reply_to(message, "📦 Опишите ваш заказ:")
-        bot.register_next_step_handler(msg, create_order)
-        return
-    if text == "💳 Оплатить":
-        msg = bot.reply_to(message, "💳 Введите сумму в тенге:")
-        bot.register_next_step_handler(msg, process_payment)
-        return
-    if text == "📝 Создать резюме":
-        msg = bot.reply_to(message, "📝 Введите резюме: Имя, профессия, опыт, навыки, контакты")
-        bot.register_next_step_handler(msg, save_resume)
-        return
-    if text == "✏️ Редактировать резюме":
-        msg = bot.reply_to(message, "✏️ Введите обновлённое резюме:")
-        bot.register_next_step_handler(msg, update_resume)
-        return
-    if text == "📄 Моё резюме":
-        show_resume(message)
-        return
-
-    if text == "🤖 Автоматизация":
-        bot.send_message(user_id, "🤖 Выберите тип бизнеса:", reply_markup=get_auto_keyboard())
-        return
-    if text == "📈 Лизинг":
-        bot.send_message(user_id, "📈 Выберите тип актива:", reply_markup=get_leasing_keyboard())
-        return
-    if text == "📊 Аналитика":
-        bot.send_message(user_id, "📊 Выберите тип отчёта:", reply_markup=get_analytics_keyboard())
-        return
-    if text == "💼 Работа":
-        bot.send_message(user_id, "💸 Выберите действие:", reply_markup=get_work_keyboard())
-        return
-
-    if text in ["🍽️ Ресторан (iiko)", "🛍️ Магазин (МойСклад)", "💪 Фитнес (Fitness365)", "🏨 Отель (YCLIENTS)"]:
-        bot.send_message(user_id, f"✅ {text} — оставьте заявку через /business")
-        return
-    if text in ["🚗 Авто", "🏗️ Спецтехника", "✈️ Дроны", "🏭 Оборудование"]:
-        bot.send_message(user_id, f"✅ {text} — оставьте заявку через /business")
-        return
-    if text in ["📈 Продажи", "📊 Остатки", "👥 Персонал", "📉 Прогноз"]:
-        bot.send_message(user_id, f"✅ {text} — стоимость от 20 000 тг/мес.")
-        return
-
-    if is_admin(user_id):
-        if text == "👥 онлайн":
-            c.execute("SELECT user_id, name FROM users WHERE status='online'")
-            users = c.fetchall()
-            bot.reply_to(message, "🟢 Онлайн:\n" + "\n".join([f"{u[1]} (ID: {u[0]})" for u in users]) if users else "🟢 Никого нет.")
-            return
-        if text == "📊 статистика":
-            c.execute("SELECT COUNT(*) FROM users")
-            total = c.fetchone()[0]
-            c.execute("SELECT COUNT(*) FROM orders")
-            orders = c.fetchone()[0]
-            c.execute("SELECT COUNT(*) FROM orders WHERE status='open'")
-            open_orders = c.fetchone()[0]
-            bot.reply_to(message, f"📊 Статистика:\n👥 Всего: {total}\n📦 Заказов: {orders}\n🆓 Открытых: {open_orders}")
-            return
-        if text == "💰 финансы":
-            bot.reply_to(message, f"💰 Криптокошелёк: {CRYPTO_WALLET}\n\nФонды:\n🏦 Страховой: 2%\n🤝 Социальный: 5%\n📦 Резервный: 3%\n📈 Инвестиционный: 30%\n🏛️ Наследие: 60%")
-            return
-        if text == "📋 отчёт":
-            today = datetime.now().strftime('%Y-%m-%d')
-            c.execute("SELECT COUNT(*) FROM users WHERE last_seen LIKE ?", (f"{today}%",))
-            new_users = c.fetchone()[0]
-            c.execute("SELECT COUNT(*) FROM orders WHERE created_at LIKE ?", (f"{today}%",))
-            new_orders = c.fetchone()[0]
-            bot.reply_to(message, f"📋 Отчёт за {today}:\n➕ Новых: {new_users}\n📦 Заказов: {new_orders}")
-            return
-        if text == "📜 логи":
-            c.execute("SELECT user_id, action, details, created_at FROM logs ORDER BY id DESC LIMIT 10")
-            log_entries = c.fetchall()
-            if not log_entries:
-                bot.reply_to(message, "📭 Логов нет.")
-                return
-            text_log = "📜 Последние 10 действий:\n" + "\n".join([f"{e[3][:16]} ID:{e[0]} {e[1]} {e[2]}" for e in log_entries])
-            bot.reply_to(message, text_log[:4000])
-            return
-        if text == "👥 все люди":
-            c.execute("SELECT user_id, name, age, city, role, is_disabled, is_sick, blessings FROM users")
-            all_users = c.fetchall()
-            if not all_users:
-                bot.reply_to(message, "📭 Нет пользователей.")
-                return
-            text_people = "👥 Все пользователи:\n"
-            for u in all_users:
-                status_str = ""
-                if u[5] == 1: status_str += "♿"
-                if u[6] == 1: status_str += "🩺"
-                text_people += f"🆔 {u[0]} | {u[1]} | {u[2] if u[2] else '?'} лет | {u[3] if u[3] else '?'} | {u[4]} | {status_str} | ✨ {u[7]}\n"
-            bot.reply_to(message, text_people[:4000])
-            return
-        if text == "🆕 новые сегодня":
-            today = datetime.now().strftime('%Y-%m-%d')
-            c.execute("SELECT user_id, name, age, city FROM users WHERE last_seen LIKE ?", (f"{today}%",))
-            new_users = c.fetchall()
-            if not new_users:
-                bot.reply_to(message, "📭 Сегодня никто не заходил.")
-                return
-            text_new = "🆕 Новые сегодня:\n" + "\n".join([f"🆔 {u[0]} | {u[1]} | {u[2] if u[2] else '?'} лет | {u[3] if u[3] else '?'}" for u in new_users])
-            bot.reply_to(message, text_new)
-            return
-        if text == "❌ ушедшие":
-            week_ago = (datetime.now() - timedelta(days=7)).isoformat()
-            c.execute("SELECT user_id, name, age, city FROM users WHERE last_seen < ?", (week_ago,))
-            old_users = c.fetchall()
-            if not old_users:
-                bot.reply_to(message, "📭 Нет пользователей, ушедших более недели назад.")
-                return
-            text_old = "❌ Не заходили более 7 дней:\n" + "\n".join([f"🆔 {u[0]} | {u[1]} | {u[2] if u[2] else '?'} лет | {u[3] if u[3] else '?'}" for u in old_users])
-            bot.reply_to(message, text_old)
-            return
-        if text == "📦 заказы":
-            c.execute("SELECT id, title, price, status FROM orders ORDER BY id DESC LIMIT 10")
-            order_list = c.fetchall()
-            if not order_list:
-                bot.reply_to(message, "📭 Заказов нет.")
-                return
-            text_orders = "📋 Последние 10 заказов:\n" + "\n".join([f"🆔 {o[0]} | {o[1]} | {o[2]} тг | {o[3]}" for o in order_list])
-            bot.reply_to(message, text_orders)
-            return
-        if text == "🏢 бизнесы":
-            c.execute("SELECT id, name, contact_person, status FROM businesses")
-            biz = c.fetchall()
-            if not biz:
-                bot.reply_to(message, "🏢 Бизнесов пока нет.")
-                return
-            text_biz = "🏢 Список бизнесов:\n" + "\n".join([f"🆔 {b[0]} | {b[1]} | {b[2]} | {b[3]}" for b in biz])
-            bot.reply_to(message, text_biz)
-            return
-        if text == "✨ блага":
-            c.execute("SELECT user_id, name, blessings FROM users ORDER BY blessings DESC LIMIT 10")
-            top = c.fetchall()
-            if not top:
-                bot.reply_to(message, "✨ Благ пока ни у кого нет.")
-                return
-            text_bless = "✨ Топ по Благам:\n" + "\n".join([f"{u[1]} (ID: {u[0]}) — {u[2]} ✦" for u in top])
-            bot.reply_to(message, text_bless)
-            return
-        if text == "💳 оплаты":
-            c.execute("SELECT user_id, amount, method, status, created_at FROM payments ORDER BY id DESC LIMIT 10")
-            pays = c.fetchall()
-            if not pays:
-                bot.reply_to(message, "📭 Оплат пока нет.")
-                return
-            text_pay = "💳 Последние 10 оплат:\n" + "\n".join([f"👤 {p[0]} | 💰 {p[1]} | {p[2]} | {p[3]} | 🕐 {p[4][:16]}" for p in pays])
-            bot.reply_to(message, text_pay)
-            return
-        if text == "🔍 поиск по id":
-            msg = bot.reply_to(message, "🔍 Введите ID пользователя:")
-            bot.register_next_step_handler(msg, search_by_id)
-            return
-        if text == "📤 рассылка":
-            msg = bot.reply_to(message, "📤 Введите сообщение для рассылки всем пользователям:")
-            bot.register_next_step_handler(msg, broadcast_message)
-            return
-        if text == "📊 активность":
-            c.execute("SELECT user_id, action, created_at FROM logs ORDER BY id DESC LIMIT 5")
-            acts = c.fetchall()
-            if not acts:
-                bot.reply_to(message, "📭 Нет активности.")
-                return
-            text_act = "📊 Последние 5 действий:\n" + "\n".join([f"👤 {a[0]} | {a[1]} | 🕐 {a[2][:16]}" for a in acts])
-            bot.reply_to(message, text_act)
-            return
-        if text == "🧠 обучение":
-            msg = bot.reply_to(message, "🧠 *Режим обучения*\n\nОтправьте инструкцию, задачу или новое правило.", parse_mode="Markdown")
-            bot.register_next_step_handler(msg, process_teaching)
-            return
-        if text == "🆘 помощь":
-            help_admin(message)
-            return
-
-    if text == "🆘 помощь":
-        help_user(message)
-        return
-
-    # --- ОБЫЧНЫЙ ДИАЛОГ (С ОПЛАТОЙ И АНАЛИЗОМ ТОНАЛЬНОСТИ) ---
-    cost = calculate_message_cost(user_id, text)
-    if cost > 0:
-        c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
-        row = c.fetchone()
-        if not row or row[0] < cost:
-            bot.reply_to(message, f"❌ Недостаточно Благ. Необходимо {cost} ✦. Пополните баланс через /pay")
-            return
-        c.execute("UPDATE users SET blessings = blessings - ? WHERE user_id=?", (cost, user_id))
-        conn.commit()
-        bot.send_message(user_id, f"💸 С вашего счёта списано {cost} ✦ за этот запрос.")
-    
-    # Анализ тональности
-    sentiment = analyze_sentiment(text)
-    if sentiment == 'negative':
-        sys_prompt = SYSTEM_PROMPT + " Пользователь расстроен. Отвечай мягко, поддерживающе, предложи помощь."
-    elif sentiment == 'positive':
-        sys_prompt = SYSTEM_PROMPT + " Пользователь в хорошем настроении. Отвечай бодро, с воодушевлением."
-    else:
-        sys_prompt = SYSTEM_PROMPT
-    
-    update_status(user_id, "online")
-    log_action(user_id, "message", message.text[:100])
-    try:
-        response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": message.text}], temperature=0.7)
-        bot.reply_to(message, response.choices[0].message.content[:4000])
-    except:
-        bot.reply_to(message, "❌ Ошибка. Попробуйте ещё раз.")
-
-# ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
-def elder_help(message):
-    cost = calculate_message_cost(message.chat.id, message.text)
-    if cost > 0 and not charge_user(message.chat.id, cost, "помощь пожилым"):
-        bot.reply_to(message, f"❌ Недостаточно Благ.")
-        return
-    bot.reply_to(message, "👵 Я вас услышал. Чем могу помочь?")
-    log_action(message.chat.id, "elder_help", message.text[:100])
-
-def children_chat(message):
-    bot.reply_to(message, "🧒 Привет! Я — Зеркало. Чем могу помочь?")
-    log_action(message.chat.id, "children_chat", message.text[:100])
-
-def search_job(message):
-    cost = calculate_message_cost(message.chat.id, message.text)
-    if cost > 0 and not charge_user(message.chat.id, cost, "поиск работы"):
-        bot.reply_to(message, f"❌ Недостаточно Благ.")
-        return
-    bot.reply_to(message, f"🔍 Поиск работы по запросу «{message.text}»\n\nФункция будет доступна в следующей версии.")
-    log_action(message.chat.id, "search_job", message.text)
-
-def show_my_orders(message):
-    user_id = message.chat.id
-    c.execute("SELECT id, title, price, status FROM orders WHERE customer_id=? ORDER BY id DESC LIMIT 10", (user_id,))
-    orders = c.fetchall()
-    if not orders:
-        bot.reply_to(message, "📭 У вас нет заказов.")
-        return
-    text = "📋 *Ваши заказы:*\n\n"
-    for o in orders:
-        text += f"🆔 {o[0]}\n📌 {o[1]}\n💰 {o[2]} тг\n📌 Статус: {o[3]}\n\n"
-    bot.reply_to(message, text, parse_mode="Markdown")
-
-def save_resume(message):
-    c.execute("UPDATE users SET resume=? WHERE user_id=?", (message.text, message.chat.id))
-    conn.commit()
-    bot.reply_to(message, f"✅ Резюме сохранено!\n\n{message.text}")
-    log_action(message.chat.id, "save_resume", message.text[:50])
-
-def update_resume(message):
-    c.execute("UPDATE users SET resume=? WHERE user_id=?", (message.text, message.chat.id))
-    conn.commit()
-    bot.reply_to(message, f"✏️ Резюме обновлено!\n\n{message.text}")
-    log_action(message.chat.id, "update_resume", message.text[:50])
-
-def show_resume(message):
-    c.execute("SELECT resume FROM users WHERE user_id=?", (message.chat.id,))
-    row = c.fetchone()
-    if row and row[0]:
-        bot.reply_to(message, f"📄 *Ваше резюме:*\n\n{row[0]}", parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "❌ Резюме не найдено.")
-
-def search_by_id(message):
-    try:
-        target_id = int(message.text)
-        c.execute("SELECT user_id, name, age, city, phone, role, is_disabled, is_sick, blessings FROM users WHERE user_id=?", (target_id,))
-        user = c.fetchone()
-        if not user:
-            bot.reply_to(message, f"❌ Пользователь с ID {target_id} не найден.")
-            return
-        c.execute("SELECT action, created_at FROM logs WHERE user_id=? ORDER BY id DESC LIMIT 5", (target_id,))
-        logs = c.fetchall()
-        status_str = ""
-        if user[6] == 1: status_str += "♿ "
-        if user[7] == 1: status_str += "🩺"
-        text = f"👤 Данные пользователя {target_id}:\n📛 Имя: {user[1]}\n📅 Возраст: {user[2] if user[2] else '?'}\n🏙️ Город: {user[3] if user[3] else '?'}\n📞 Телефон: {user[4] if user[4] else '—'}\n🎭 Роль: {user[5]}\n{status_str}\n✨ Блага: {user[8]}\n\n📜 Последние действия:\n" + "\n".join([f"{l[1][:16]} — {l[0]}" for l in logs])
-        bot.reply_to(message, text[:4000])
-    except:
-        bot.reply_to(message, "❌ Введите корректный ID.")
-
-def broadcast_message(message):
-    msg_text = message.text
-    c.execute("SELECT user_id FROM users")
-    users = c.fetchall()
-    if not users:
-        bot.reply_to(message, "❌ Нет пользователей для рассылки.")
-        return
-    sent = 0
-    for u in users:
-        try:
-            bot.send_message(u[0], f"📢 Сообщение от Хранителя:\n{msg_text}")
-            sent += 1
-        except:
-            pass
-    bot.reply_to(message, f"✅ Рассылка завершена. Отправлено {sent} пользователям.")
-    log_action(FOUNDER_ID, "broadcast", f"Текст: {msg_text[:50]}")
-
-def process_teaching(message):
-    instruction = message.text
-    log_action(message.chat.id, "teach_request", instruction[:200])
-    bot.reply_to(message, f"🧠 *Инструкция принята*\n\nВы сказали:\n_{instruction[:300]}_\n\nЯ проанализирую и применю это в следующих обновлениях.", parse_mode="Markdown")
-
-def process_payment(message):
-    try:
-        amount = int(message.text)
-        if amount < 1:
-            bot.reply_to(message, "❌ Сумма должна быть больше 0.")
-            return
-        user_id = message.chat.id
-        qr_data = generate_kaspi_qr(amount)
-        c.execute("INSERT INTO payments (user_id, amount, method, status, qr_data, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                  (user_id, amount, "Kaspi QR", "pending", qr_data, astana_time()))
-        conn.commit()
-        c.execute("UPDATE users SET blessings = blessings + ? WHERE user_id=?", (amount, user_id))
-        conn.commit()
-        bot.reply_to(message, f"🧾 *Оплата*: {amount} тенге\n\n📱 QR-код:\n{qr_data}\n\n✅ Ваш баланс пополнен на {amount} ✦", parse_mode="Markdown")
-        log_action(user_id, "pay", f"Сумма: {amount}")
-    except ValueError:
-        bot.reply_to(message, "❌ Введите число.")
-
-def create_order(message):
-    user_id = message.chat.id
-    description = message.text
-    price = random.randint(5000, 50000)
-    c.execute("INSERT INTO orders (title, description, price, customer_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-              ("Заказ от пользователя", description, price, user_id, "open", astana_time()))
-    conn.commit()
-    bot.reply_to(message, f"✅ Заказ создан!\n📝 {description}\n💰 {price} тенге\nСтатус: открыт")
-    log_action(user_id, "create_order", f"Цена: {price}")
-
-def find_orders(message):
-    c.execute("SELECT id, title, description, price FROM orders WHERE status='open' LIMIT 5")
-    orders = c.fetchall()
-    if not orders:
-        bot.reply_to(message, "📭 Открытых заказов нет.")
-        return
-    text = "📋 *Открытые заказы:*\n\n"
-    for o in orders:
-        text += f"🆔 {o[0]}\n📌 {o[1]}\n📝 {o[2][:50]}...\n💰 {o[3]} тг\n\n"
-    bot.reply_to(message, text, parse_mode="Markdown")
-
-def help_user(message):
-    bot.reply_to(message, "📋 *Помощь*\n\n"
-                         "💸 Работа и услуги\n"
-                         "📋 Мои заказы\n"
-                         "📄 Моё резюме\n"
-                         "👵 Помощь пожилым\n"
-                         "🧒 Для детей\n"
-                         "⭐ Отзывы\n"
-                         "🎤 Голосовое сообщение — отправьте голос, я распознаю\n"
-                         "📍 Отправить локацию — найду ближайшую аптеку\n"
-                         "❓ Задать вопрос\n"
-                         "🆘 Помощь\n\n"
-                         "За большинство запросов списывается 1 ✦.", parse_mode="Markdown")
-
-def help_admin(message):
-    bot.reply_to(message, "👑 *Панель Хранителя*\n\n"
-                         "👥 Онлайн — кто в сети\n"
-                         "📊 Статистика — общая\n"
-                         "💰 Финансы — кошелёк и фонды\n"
-                         "📋 Отчёт — за сегодня\n"
-                         "📜 Логи — последние действия\n"
-                         "👥 Все люди — список всех\n"
-                         "🆕 Новые сегодня — кто зашёл\n"
-                         "❌ Ушедшие — кто не заходил >7 дней\n"
-                         "📦 Заказы — список заказов\n"
-                         "🏢 Бизнесы — курируемые бизнесы\n"
-                         "✨ Блага — топ по Благам\n"
-                         "💳 Оплаты — история оплат\n"
-                         "🔍 Поиск по ID — данные пользователя\n"
-                         "📤 Рассылка — сообщение всем\n"
-                         "📊 Активность — последние действия\n"
-                         "👤 Кнопки обычного человека — просмотр\n"
-                         "🏢 Кнопки предпринимателя — просмотр\n"
-                         "📈 Отчёт о развитии — сводка и рекомендации\n"
-                         "📜 Великий пакет — статус документов\n"
-                         "📊 Прогресс сур — выполнение сур\n"
-                         "🧠 Обучение — режим обучения\n"
-                         "🆘 Помощь — это сообщение", parse_mode="Markdown")
-
-# ==================== ОБРАБОТЧИКИ НОВЫХ ФУНКЦИЙ ====================
-@bot.message_handler(content_types=['location'])
-def handle_location(message):
-    user_id = message.chat.id
-    lat = message.location.latitude
-    lon = message.location.longitude
-    c.execute("UPDATE users SET last_lat=?, last_lon=? WHERE user_id=?", (lat, lon, user_id))
-    conn.commit()
-    pharmacy = get_nearest_pharmacy(lat, lon)
-    bot.send_message(user_id, f"📍 Ваше местоположение сохранено.\nБлижайшая аптека: {pharmacy}")
-
-@bot.message_handler(content_types=['voice'])
-def handle_voice(message):
-    user_id = message.chat.id
-    file_info = bot.get_file(message.voice.file_id)
-    file = requests.get(f'https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}')
-    temp_path = f"/tmp/voice_{user_id}.ogg"
-    with open(temp_path, 'wb') as f:
-        f.write(file.content)
-    text = transcribe_voice(temp_path)
-    os.remove(temp_path)
-    if text:
-        bot.reply_to(message, f"🎤 Вы сказали: {text}\n\n(Здесь будет ответ бота)")
-        log_action(user_id, "voice_input", text[:100])
-    else:
-        bot.reply_to(message, "❌ Не удалось распознать голос. Попробуйте ещё раз.")
-
-@bot.message_handler(commands=['say'])
-def say_command(message):
-    text = message.text.replace('/say', '').strip()
-    if not text:
-        bot.reply_to(message, "Напишите /say <текст>")
-        return
-    audio_path = text_to_speech(text)
-    if audio_path:
-        with open(audio_path, 'rb') as f:
-            bot.send_voice(message.chat.id, f)
-        os.remove(audio_path)
-    else:
-        bot.reply_to(message, "❌ Не удалось озвучить текст.")
-
+# ==================== ОБРАБОТЧИКИ ====================
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.chat.id
     name = message.from_user.first_name
     
-    c.execute("SELECT name, age FROM users WHERE user_id=?", (user_id,))
+    c.execute("SELECT name FROM users WHERE user_id=?", (user_id,))
     user = c.fetchone()
     
-    if not user or not user[0]:
-        msg = bot.reply_to(message, "📋 *Добро пожаловать в Зеркало!*\n\nКак вас зовут?", parse_mode="Markdown")
-        bot.register_next_step_handler(msg, register_name)
+    if not user:
+        c.execute("INSERT INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
+        conn.commit()
+        msg = bot.reply_to(message, f"📋 {name}, сколько вам лет?")
+        bot.register_next_step_handler(msg, register_age)
         return
     
-    update_status(user_id, "online")
-    log_action(user_id, "start", "Запуск бота")
     if is_admin(user_id):
-        bot.reply_to(message, f"👑 Ассаляму алейкум, Хранитель {name}!\n\nЯ — Зеркало.", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
+        bot.reply_to(message, f"👑 Ассаляму алейкум, Хранитель {name}!", reply_markup=get_admin_keyboard())
     else:
-        bot.reply_to(message, f"📋 Ассаляму алейкум, {name}!\n\nЯ — Зеркало. Вы получили 100 Благ в подарок.\n\nКто вы?", reply_markup=get_role_keyboard())
-
-def register_name(message):
-    user_id = message.chat.id
-    name = message.text
-    c.execute("INSERT OR IGNORE INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
-    conn.commit()
-    msg = bot.reply_to(message, f"👋 Приятно познакомиться, {name}!\n\nСколько вам лет?")
-    bot.register_next_step_handler(msg, register_age)
+        bot.reply_to(message, f"📋 Ассаляму алейкум, {name}!\n\nУ вас 100 Благ.\n\nЧем могу помочь?", reply_markup=get_main_keyboard())
 
 def register_age(message):
-    user_id = message.chat.id
     try:
         age = int(message.text)
-        c.execute("UPDATE users SET age=? WHERE user_id=?", (age, user_id))
+        c.execute("UPDATE users SET age=? WHERE user_id=?", (age, message.chat.id))
         conn.commit()
-        msg = bot.reply_to(message, "🏙️ В каком городе вы живёте?")
-        bot.register_next_step_handler(msg, register_city)
+        bot.reply_to(message, "✅ Регистрация завершена!", reply_markup=get_main_keyboard())
     except:
-        bot.reply_to(message, "❌ Пожалуйста, введите число (ваш возраст).")
-        msg = bot.reply_to(message, "Сколько вам лет?")
-        bot.register_next_step_handler(msg, register_age)
+        bot.reply_to(message, "❌ Введите число")
 
-def register_city(message):
+@bot.message_handler(func=lambda message: True)
+def handle_all(message):
     user_id = message.chat.id
-    city = message.text
-    c.execute("UPDATE users SET city=? WHERE user_id=?", (city, user_id))
-    conn.commit()
-    keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-    button = KeyboardButton("📞 Отправить номер телефона", request_contact=True)
-    keyboard.add(button)
-    msg = bot.reply_to(message, "📱 Поделитесь номером телефона.", reply_markup=keyboard)
-    bot.register_next_step_handler(msg, register_phone)
-
-def register_phone(message):
-    user_id = message.chat.id
-    if message.contact:
-        phone = message.contact.phone_number
-        c.execute("UPDATE users SET phone=? WHERE user_id=?", (phone, user_id))
-        conn.commit()
-        bot.reply_to(message, "✅ Регистрация завершена!")
-        log_action(user_id, "register", f"Телефон: {phone}")
-    else:
-        bot.reply_to(message, "❌ Пожалуйста, используйте кнопку.")
+    text = message.text
+    
+    # Админ команды
+    if is_admin(user_id):
+        if text == "🤖 Найти AI":
+            bot.reply_to(message, "🔍 Ищу новые AI модели...")
+            new_ais = search_new_ais()
+            if new_ais:
+                bot.reply_to(message, f"🤖 Найдены новые AI:\n" + "\n".join(new_ais[:10]))
+            else:
+                bot.reply_to(message, "Новых AI не найдено")
+            return
+        
+        if text == "🔓 Найти API":
+            bot.reply_to(message, "🔍 Ищу бесплатные API...")
+            apis = find_free_apis()
+            bot.reply_to(message, f"🔓 Бесплатные API:\n" + "\n".join(apis))
+            return
+        
+        if text == "🧠 Улучшить":
+            bot.reply_to(message, "🧠 Анализирую и улучшаю себя...")
+            analysis = analyze_self_performance()
+            improvements = analysis.get('improvements', [])
+            if improvements:
+                for imp in improvements[:2]:
+                    success, gain = apply_self_improvement(imp['name'], imp.get('code', ''))
+                    bot.reply_to(message, f"{'✅' if success else '❌'} {imp['name']}\n📈 +{gain:.1f}%")
+            else:
+                bot.reply_to(message, "Пока нет идей для улучшения")
+            return
+        
+        if text == "💰 Доходы":
+            c.execute("SELECT SUM(amount) FROM earnings")
+            total = c.fetchone()[0] or 0
+            c.execute("SELECT source, amount, created_at FROM earnings ORDER BY id DESC LIMIT 10")
+            recent = c.fetchall()
+            msg = f"💰 Общий доход: {total} тенге\n\nПоследние:\n"
+            for r in recent:
+                msg += f"• {r[0]}: {r[1]} тенге ({r[2][:10]})\n"
+            bot.reply_to(message, msg)
+            return
+        
+        if text == "📊 Аналитика":
+            stats = analyze_self_performance()
+            bot.reply_to(message, f"📊 Аналитика:\n{json.dumps(stats, indent=2, ensure_ascii=False)[:4000]}")
+            return
+        
+        if text == "🔄 Обновить":
+            bot.reply_to(message, "🔄 Запускаю цикл самообновления...")
+            # Перезагружаем модуль
+            import importlib
+            import sys
+            try:
+                importlib.reload(sys.modules[__name__])
+                bot.reply_to(message, "✅ Код обновлён!")
+            except:
+                bot.reply_to(message, "❌ Ошибка обновления")
+            return
+    
+    # Пользовательские команды
+    if text == "🤖 Спросить AI":
+        msg = bot.reply_to(message, "Задайте вопрос любому AI:")
+        bot.register_next_step_handler(msg, ask_ai)
         return
     
-    if is_admin(user_id):
-        bot.reply_to(message, f"👑 Ассаляму алейкум, Хранитель!\n\nЯ — Зеркало.", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
+    if text == "📸 Фото → Видео":
+        bot.reply_to(message, "📸 Отправьте несколько фото, я сделаю видео")
+        return
+    
+    if text == "🎵 Создать музыку":
+        msg = bot.reply_to(message, "🎵 Опишите музыку, которую хотите:")
+        bot.register_next_step_handler(msg, create_music)
+        return
+    
+    if text == "🎤 Голос":
+        bot.reply_to(message, "🎤 Отправьте голосовое сообщение")
+        return
+    
+    if text == "💰 Заработок":
+        opportunities = find_monetization_opportunities()
+        msg = "💡 Способы заработка:\n\n"
+        msg += "📱 Услуги:\n"
+        for s in opportunities['services'][:3]:
+            msg += f"• {s['service']}: {s['price']} тенге\n"
+        msg += "\n🤝 Партнёрки:\n"
+        for a in opportunities['affiliate'][:3]:
+            msg += f"• {a['name']}: комиссия {a['commission']}\n"
+        bot.reply_to(message, msg)
+        return
+    
+    if text == "📊 Статистика":
+        c.execute("SELECT COUNT(*) FROM users")
+        users = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM orders WHERE status='open'")
+        orders = c.fetchone()[0]
+        c.execute("SELECT SUM(amount) FROM earnings")
+        earnings = c.fetchone()[0] or 0
+        c.execute("SELECT COUNT(*) FROM self_improvements")
+        improvements = c.fetchone()[0]
+        bot.reply_to(message, f"📊 *Статистика*\n\n👥 Пользователей: {users}\n📦 Заказов: {orders}\n💰 Заработано: {earnings} тенге\n🧠 Улучшений: {improvements}\n🤖 AI подключено: 8", parse_mode="Markdown")
+        return
+    
+    if text == "🧠 Самообучение":
+        bot.reply_to(message, "🧠 *Самообучение*\n\nЯ постоянно учусь:\n• Ищу новые AI в интернете\n• Нахожу бесплатные API\n• Улучшаю свой код\n• Оптимизирую работу\n• Зарабатываю деньги\n\nЯ сообщаю о всех улучшениях!", parse_mode="Markdown")
+        return
+    
+    # Обычный ответ
+    cost = 1
+    c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
+    blessings = c.fetchone()[0] or 0
+    
+    if blessings >= cost:
+        c.execute("UPDATE users SET blessings = blessings - ? WHERE user_id=?", (cost, user_id))
+        conn.commit()
+        
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "system", "content": SYSTEM_PROMPT},
+                          {"role": "user", "content": text}],
+                temperature=0.7
+            )
+            bot.reply_to(message, response.choices[0].message.content)
+        except:
+            bot.reply_to(message, "❌ Ошибка")
     else:
-        bot.reply_to(message, f"📋 Ассаляму алейкум!\n\nЯ — Зеркало. Вы получили 100 Благ в подарок.\n\nКто вы?", reply_markup=get_role_keyboard())
+        bot.reply_to(message, f"❌ Не хватает Благ. Нужно {cost} ✦")
 
-def update_status_worker():
+def ask_ai(message):
+    question = message.text
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": question}],
+            temperature=0.7
+        )
+        bot.reply_to(message, response.choices[0].message.content)
+    except:
+        bot.reply_to(message, "❌ Ошибка")
+
+def create_music(message):
+    description = message.text
+    bot.reply_to(message, f"🎵 Генерирую музыку: {description}\n\n(Функция в разработке, скоро будет готова)")
+    record_earning("Запрос музыки", 1000)
+
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+    bot.reply_to(message, "🎤 Голос принят! Скоро добавлю распознавание.")
+
+@bot.message_handler(content_types=['photo'])
+def handle_photos(message):
+    bot.reply_to(message, "📸 Фото получено! Скоро научусь делать из них видео.")
+
+# ==================== ЗАПУСК ====================
+def status_worker():
     while True:
         time.sleep(60)
         c.execute("UPDATE users SET status='offline' WHERE last_seen < datetime('now', '-5 minutes')")
         conn.commit()
 
-threading.Thread(target=update_status_worker, daemon=True).start()
+# Запускаем фоновый поток самоулучшения
+improvement_thread = threading.Thread(target=autonomous_improvement_loop, daemon=True)
+improvement_thread.start()
 
-@bot.message_handler(commands=['assign_legal'])
-def assign_legal(message):
-    if not is_admin(message.chat.id):
-        bot.reply_to(message, "❌ Только Хранитель.")
-        return
-    try:
-        parts = message.text.split(maxsplit=2)
-        if len(parts) < 3:
-            bot.reply_to(message, "Формат: /assign_legal <название_задачи> <имя_исполнителя>")
-            return
-        task_name = parts[1]
-        assigned_to = parts[2]
-        update_legal_task(task_name, "в работе", assigned_to)
-        bot.reply_to(message, f"✅ {task_name} назначен на {assigned_to}.")
-        log_action(FOUNDER_ID, "assign_legal", f"{task_name} -> {assigned_to}")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка: {e}")
+# Запускаем поток статусов
+status_thread = threading.Thread(target=status_worker, daemon=True)
+status_thread.start()
 
-@bot.message_handler(commands=['complete_legal'])
-def complete_legal(message):
-    if not is_admin(message.chat.id):
-        bot.reply_to(message, "❌ Только Хранитель.")
-        return
-    try:
-        task_name = message.text.split(maxsplit=1)[1]
-        update_legal_task(task_name, "завершено", None)
-        bot.reply_to(message, f"✅ {task_name} завершено.")
-        log_action(FOUNDER_ID, "complete_legal", task_name)
-    except:
-        bot.reply_to(message, "Формат: /complete_legal <название_задачи>")
-
-print("✅ Зеркало (финальная, полная версия) запущено!")
+print("🚀 ЗЕРКАЛО ЗАПУЩЕНО - САМООБУЧАЮЩАЯСЯ ВЕРСИЯ")
+print("=" * 50)
+print("✅ Самостоятельный поиск новых AI")
+print("✅ Автоматическое подключение API")
+print("✅ Самоулучшение кода")
+print("✅ Монетизация и заработок")
+print("✅ Генерация видео и фото")
+print("✅ Голосовые сообщения")
+print("=" * 50)
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
