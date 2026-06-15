@@ -56,26 +56,65 @@ def is_admin(user_id):
 def generate_kaspi_qr(amount):
     return f"https://test.kaspi.kz/qr/pay?amount={amount}&merchant=Zerkalo&order_id={random.randint(100000, 999999)}"
 
-# ==================== КЛАВИАТУРЫ ====================
+# ==================== КЛАВИАТУРЫ (МЕНЮ ПАПКАМИ) ====================
 def get_role_keyboard():
     keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     keyboard.add(KeyboardButton("👤 Я обычный человек"), KeyboardButton("🏢 Я предприниматель"))
     return keyboard
 
-def get_user_keyboard():
+# --- ГЛАВНОЕ МЕНЮ ОБЫЧНОГО ЧЕЛОВЕКА ---
+def get_user_main_keyboard():
     keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    keyboard.add(KeyboardButton("💳 Оплатить"), KeyboardButton("📦 Создать заказ"))
-    keyboard.add(KeyboardButton("🔍 Найти заказ"), KeyboardButton("❓ Задать вопрос"))
-    keyboard.add(KeyboardButton("🆘 Помощь"))
+    keyboard.add(KeyboardButton("💸 Работа и услуги"), KeyboardButton("📋 Мои заказы"))
+    keyboard.add(KeyboardButton("📄 Резюме"), KeyboardButton("⭐ Отзывы"))
+    keyboard.add(KeyboardButton("❓ Задать вопрос"), KeyboardButton("🆘 Помощь"))
+    keyboard.add(KeyboardButton("🔙 На главную"))
     return keyboard
 
-def get_business_keyboard():
+def get_work_keyboard():
+    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    keyboard.add(KeyboardButton("🔍 Найти работу"), KeyboardButton("📦 Найти заказ"))
+    keyboard.add(KeyboardButton("➕ Создать заказ"), KeyboardButton("💳 Оплатить"))
+    keyboard.add(KeyboardButton("🔙 Назад"))
+    return keyboard
+
+def get_resume_keyboard():
+    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    keyboard.add(KeyboardButton("📝 Создать резюме"), KeyboardButton("✏️ Редактировать резюме"))
+    keyboard.add(KeyboardButton("📄 Моё резюме"), KeyboardButton("🔙 Назад"))
+    return keyboard
+
+# --- ГЛАВНОЕ МЕНЮ ПРЕДПРИНИМАТЕЛЯ ---
+def get_business_main_keyboard():
     keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     keyboard.add(KeyboardButton("🤖 Автоматизация"), KeyboardButton("📈 Лизинг"))
-    keyboard.add(KeyboardButton("📊 Аналитика"), KeyboardButton("🔍 Найти заказ"))
+    keyboard.add(KeyboardButton("📊 Аналитика"), KeyboardButton("💼 Работа"))
     keyboard.add(KeyboardButton("❓ Задать вопрос"), KeyboardButton("🆘 Помощь"))
+    keyboard.add(KeyboardButton("🔙 На главную"))
     return keyboard
 
+def get_auto_keyboard():
+    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    keyboard.add(KeyboardButton("🍽️ Ресторан (iiko)"), KeyboardButton("🛍️ Магазин (МойСклад)"))
+    keyboard.add(KeyboardButton("💪 Фитнес (Fitness365)"), KeyboardButton("🏨 Отель (YCLIENTS)"))
+    keyboard.add(KeyboardButton("🔙 Назад"))
+    return keyboard
+
+def get_leasing_keyboard():
+    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    keyboard.add(KeyboardButton("🚗 Авто"), KeyboardButton("🏗️ Спецтехника"))
+    keyboard.add(KeyboardButton("✈️ Дроны"), KeyboardButton("🏭 Оборудование"))
+    keyboard.add(KeyboardButton("🔙 Назад"))
+    return keyboard
+
+def get_analytics_keyboard():
+    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    keyboard.add(KeyboardButton("📈 Продажи"), KeyboardButton("📊 Остатки"))
+    keyboard.add(KeyboardButton("👥 Персонал"), KeyboardButton("📉 Прогноз"))
+    keyboard.add(KeyboardButton("🔙 Назад"))
+    return keyboard
+
+# --- ПАНЕЛЬ ХРАНИТЕЛЯ ---
 def get_admin_keyboard():
     keyboard = ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
     keyboard.add(KeyboardButton("👥 Онлайн"), KeyboardButton("📊 Статистика"), KeyboardButton("💰 Финансы"))
@@ -90,53 +129,129 @@ def get_admin_keyboard():
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
     user_id = message.chat.id
-    text = message.text.strip().lower()
+    text = message.text.strip()
 
     # --- ВЫБОР РОЛИ ---
-    if text in ["👤 я обычный человек", "я обычный человек"]:
+    if text in ["👤 Я обычный человек", "Я обычный человек"]:
         c.execute("UPDATE users SET role='user' WHERE user_id=?", (user_id,))
         conn.commit()
-        bot.send_message(user_id, "✅ Вы выбрали роль: Обычный человек. Вот ваши возможности:", reply_markup=get_user_keyboard())
+        bot.send_message(user_id, "✅ Главное меню", reply_markup=get_user_main_keyboard())
         log_action(user_id, "set_role", "user")
         return
-    if text in ["🏢 я предприниматель", "я предприниматель"]:
+    if text in ["🏢 Я предприниматель", "Я предприниматель"]:
         c.execute("UPDATE users SET role='business' WHERE user_id=?", (user_id,))
         conn.commit()
-        bot.send_message(user_id, "✅ Вы выбрали роль: Предприниматель. Вот ваши инструменты:", reply_markup=get_business_keyboard())
+        bot.send_message(user_id, "✅ Главное меню предпринимателя", reply_markup=get_business_main_keyboard())
         log_action(user_id, "set_role", "business")
         return
 
-    # --- ПАНЕЛЬ ХРАНИТЕЛЯ (по слову "панель") ---
+    # --- ПАНЕЛЬ ХРАНИТЕЛЯ ---
     if text == "панель" and is_admin(user_id):
         bot.send_message(user_id, "👑 **Панель Хранителя**", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
         return
 
-    # --- КНОПКИ ОБЫЧНОГО ПОЛЬЗОВАТЕЛЯ ---
-    if text == "💳 оплатить":
-        msg = bot.reply_to(message, "💳 Введите сумму в тенге:")
-        bot.register_next_step_handler(msg, process_payment)
+    # --- НАВИГАЦИЯ ОБЫЧНОГО ПОЛЬЗОВАТЕЛЯ ---
+    if text == "🔙 На главную":
+        role = c.execute("SELECT role FROM users WHERE user_id=?", (user_id,)).fetchone()
+        if role and role[0] == 'business':
+            bot.send_message(user_id, "🏢 Главное меню предпринимателя", reply_markup=get_business_main_keyboard())
+        else:
+            bot.send_message(user_id, "👤 Главное меню", reply_markup=get_user_main_keyboard())
         return
-    if text == "📦 создать заказ":
+    if text == "🔙 Назад":
+        role = c.execute("SELECT role FROM users WHERE user_id=?", (user_id,)).fetchone()
+        if role and role[0] == 'business':
+            bot.send_message(user_id, "🏢 Главное меню предпринимателя", reply_markup=get_business_main_keyboard())
+        else:
+            bot.send_message(user_id, "👤 Главное меню", reply_markup=get_user_main_keyboard())
+        return
+
+    # --- МЕНЮ ОБЫЧНОГО ЧЕЛОВЕКА ---
+    if text == "💸 Работа и услуги":
+        bot.send_message(user_id, "💸 Выберите действие:", reply_markup=get_work_keyboard())
+        return
+    if text == "📄 Резюме":
+        bot.send_message(user_id, "📄 Управление резюме:", reply_markup=get_resume_keyboard())
+        return
+    if text == "🔍 Найти работу":
+        bot.send_message(user_id, "🔍 Функция поиска работы будет доступна в следующей версии.")
+        return
+    if text == "📦 Найти заказ":
+        find_orders(message)
+        return
+    if text == "➕ Создать заказ":
         msg = bot.reply_to(message, "📦 Опишите ваш заказ:")
         bot.register_next_step_handler(msg, create_order)
         return
-    if text == "🔍 найти заказ":
-        find_orders(message)
+    if text == "💳 Оплатить":
+        msg = bot.reply_to(message, "💳 Введите сумму в тенге:")
+        bot.register_next_step_handler(msg, process_payment)
         return
-    if text == "❓ задать вопрос":
-        msg = bot.reply_to(message, "❓ Ваш вопрос:")
-        bot.register_next_step_handler(msg, ask_question)
+    if text == "📝 Создать резюме":
+        msg = bot.reply_to(message, "📝 Введите ваше имя, профессию, опыт через запятую:")
+        bot.register_next_step_handler(msg, save_resume)
+        return
+    if text == "✏️ Редактировать резюме":
+        bot.send_message(user_id, "✏️ Функция редактирования будет доступна позже.")
+        return
+    if text == "📄 Моё резюме":
+        show_resume(message)
         return
 
-    # --- КНОПКИ ПРЕДПРИНИМАТЕЛЯ ---
-    if text == "🤖 автоматизация":
-        bot.reply_to(message, "🤖 *Автоматизация бизнеса*\n\nПодключим iiko, Kaspi Pay и другие системы. Заявка: /business", parse_mode="Markdown")
+    # --- МЕНЮ ПРЕДПРИНИМАТЕЛЯ ---
+    if text == "🤖 Автоматизация":
+        bot.send_message(user_id, "🤖 Выберите тип бизнеса:", reply_markup=get_auto_keyboard())
         return
-    if text == "📈 лизинг":
-        bot.reply_to(message, "📈 *Лизинг оборудования и авто*\n\nПодберём лучшие условия. Заявка: /business", parse_mode="Markdown")
+    if text == "📈 Лизинг":
+        bot.send_message(user_id, "📈 Выберите тип актива:", reply_markup=get_leasing_keyboard())
         return
-    if text == "📊 аналитика":
-        bot.reply_to(message, "📊 *Аналитика для бизнеса*\n\nОтчёт по продажам, остаткам, прогнозам. Заявка: /business", parse_mode="Markdown")
+    if text == "📊 Аналитика":
+        bot.send_message(user_id, "📊 Выберите тип отчёта:", reply_markup=get_analytics_keyboard())
+        return
+    if text == "💼 Работа":
+        bot.send_message(user_id, "💸 Выберите действие:", reply_markup=get_work_keyboard())
+        return
+
+    # --- ПОДМЕНЮ АВТОМАТИЗАЦИИ ---
+    if text == "🍽️ Ресторан (iiko)":
+        bot.send_message(user_id, "🍽️ Автоматизация ресторана (iiko + Kaspi Pay).\nСтоимость: от 90 000 тг/мес.\nОставьте заявку /business")
+        return
+    if text == "🛍️ Магазин (МойСклад)":
+        bot.send_message(user_id, "🛍️ Автоматизация магазина (МойСклад + Kaspi Pay).\nСтоимость: от 50 000 тг/мес.")
+        return
+    if text == "💪 Фитнес (Fitness365)":
+        bot.send_message(user_id, "💪 Автоматизация фитнес-клуба (Fitness365 + Kaspi Pay).\nСтоимость: от 40 000 тг/мес.")
+        return
+    if text == "🏨 Отель (YCLIENTS)":
+        bot.send_message(user_id, "🏨 Автоматизация отеля (YCLIENTS + Kaspi Pay).\nСтоимость: от 60 000 тг/мес.")
+        return
+
+    # --- ПОДМЕНЮ ЛИЗИНГА ---
+    if text == "🚗 Авто":
+        bot.send_message(user_id, "🚗 Лизинг авто от 10% годовых. Оставьте заявку /business")
+        return
+    if text == "🏗️ Спецтехника":
+        bot.send_message(user_id, "🏗️ Лизинг спецтехники от 12% годовых.")
+        return
+    if text == "✈️ Дроны":
+        bot.send_message(user_id, "✈️ Лизинг дронов от 15% годовых.")
+        return
+    if text == "🏭 Оборудование":
+        bot.send_message(user_id, "🏭 Лизинг оборудования от 8% годовых.")
+        return
+
+    # --- ПОДМЕНЮ АНАЛИТИКИ ---
+    if text == "📈 Продажи":
+        bot.send_message(user_id, "📈 Отчёт по продажам (графики, тренды).\nСтоимость: от 20 000 тг/мес.")
+        return
+    if text == "📊 Остатки":
+        bot.send_message(user_id, "📊 Отчёт по остаткам товаров.\nСтоимость: от 15 000 тг/мес.")
+        return
+    if text == "👥 Персонал":
+        bot.send_message(user_id, "👥 Аналитика персонала (загрузка, KPI).\nСтоимость: от 25 000 тг/мес.")
+        return
+    if text == "📉 Прогноз":
+        bot.send_message(user_id, "📉 Прогноз продаж на основе AI.\nСтоимость: от 30 000 тг/мес.")
         return
 
     # --- ХРАНИТЕЛЬ ---
@@ -258,14 +373,13 @@ def handle_all_messages(message):
             bot.reply_to(message, text_act)
             return
         if text == "🧠 обучение":
-            msg = bot.reply_to(message, "🧠 *Режим обучения*\n\nОтправьте мне инструкцию, задачу или новое правило.\n\nПримеры:\n• «Добавь команду /test»\n• «Измени приветствие на ...»\n• «Создай суру о рекламе»\n\nЯ запомню и применю.", parse_mode="Markdown")
+            msg = bot.reply_to(message, "🧠 *Режим обучения*\n\nОтправьте мне инструкцию, задачу или новое правило.\n\nЯ запомню и применю.", parse_mode="Markdown")
             bot.register_next_step_handler(msg, process_teaching)
             return
         if text == "🆘 помощь":
             help_admin(message)
             return
 
-    # --- ПОМОЩЬ ДЛЯ ОБЫЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ---
     if text == "🆘 помощь":
         help_user(message)
         return
@@ -280,6 +394,27 @@ def handle_all_messages(message):
         bot.reply_to(message, "❌ Ошибка. Попробуйте ещё раз.")
 
 # ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+def save_resume(message):
+    parts = message.text.split(',')
+    if len(parts) >= 3:
+        name = parts[0].strip()
+        profession = parts[1].strip()
+        experience = parts[2].strip()
+        c.execute("UPDATE users SET name=?, role=? WHERE user_id=?", (name, profession, message.chat.id))
+        conn.commit()
+        bot.reply_to(message, f"✅ Резюме сохранено!\n👤 Имя: {name}\n💼 Профессия: {profession}\n📅 Опыт: {experience}")
+        log_action(message.chat.id, "create_resume", f"{name}, {profession}")
+    else:
+        bot.reply_to(message, "❌ Формат: Имя, профессия, опыт")
+
+def show_resume(message):
+    c.execute("SELECT name, role, last_seen FROM users WHERE user_id=?", (message.chat.id,))
+    user = c.fetchone()
+    if user:
+        bot.reply_to(message, f"📄 Ваше резюме:\n👤 Имя: {user[0]}\n💼 Профессия: {user[1]}\n🕐 Последний визит: {user[2][:16]}")
+    else:
+        bot.reply_to(message, "❌ Резюме не найдено.")
+
 def search_by_id(message):
     try:
         target_id = int(message.text)
@@ -365,31 +500,31 @@ def ask_question(message):
 
 def help_user(message):
     bot.reply_to(message, "📋 *Помощь*\n\n"
-                         "💳 *Оплатить* — оплатить услугу\n"
-                         "📦 *Создать заказ* — создать заказ\n"
-                         "🔍 *Найти заказ* — найти заказы\n"
-                         "❓ *Задать вопрос* — спросить меня\n"
-                         "🆘 *Помощь* — это сообщение", parse_mode="Markdown")
+                         "💸 Работа и услуги — найти работу, заказы\n"
+                         "📄 Резюме — создать, редактировать\n"
+                         "💳 Оплатить — оплатить услугу\n"
+                         "❓ Задать вопрос — спросить меня\n"
+                         "🆘 Помощь — это сообщение", parse_mode="Markdown")
 
 def help_admin(message):
     bot.reply_to(message, "👑 *Панель Хранителя*\n\n"
-                         "👥 *Онлайн* — кто в сети\n"
-                         "📊 *Статистика* — общая\n"
-                         "💰 *Финансы* — кошелёк и фонды\n"
-                         "📋 *Отчёт* — за сегодня\n"
-                         "📜 *Логи* — последние действия\n"
-                         "👥 *Все люди* — список всех\n"
-                         "🆕 *Новые сегодня* — кто зашёл\n"
-                         "❌ *Ушедшие* — кто не заходил >7 дней\n"
-                         "📦 *Заказы* — список заказов\n"
-                         "🏢 *Бизнесы* — курируемые бизнесы\n"
-                         "✨ *Блага* — топ по Благам\n"
-                         "💳 *Оплаты* — история оплат\n"
-                         "🔍 *Поиск по ID* — данные пользователя\n"
-                         "📤 *Рассылка* — сообщение всем\n"
-                         "📊 *Активность* — последние действия\n"
-                         "🧠 *Обучение* — режим обучения\n"
-                         "🆘 *Помощь* — это сообщение", parse_mode="Markdown")
+                         "👥 Онлайн — кто в сети\n"
+                         "📊 Статистика — общая\n"
+                         "💰 Финансы — кошелёк и фонды\n"
+                         "📋 Отчёт — за сегодня\n"
+                         "📜 Логи — последние действия\n"
+                         "👥 Все люди — список всех\n"
+                         "🆕 Новые сегодня — кто зашёл\n"
+                         "❌ Ушедшие — кто не заходил >7 дней\n"
+                         "📦 Заказы — список заказов\n"
+                         "🏢 Бизнесы — курируемые бизнесы\n"
+                         "✨ Блага — топ по Благам\n"
+                         "💳 Оплаты — история оплат\n"
+                         "🔍 Поиск по ID — данные пользователя\n"
+                         "📤 Рассылка — сообщение всем\n"
+                         "📊 Активность — последние действия\n"
+                         "🧠 Обучение — режим обучения\n"
+                         "🆘 Помощь — это сообщение", parse_mode="Markdown")
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -412,7 +547,7 @@ def update_status_worker():
 
 threading.Thread(target=update_status_worker, daemon=True).start()
 
-print("✅ Зеркало (финальная версия) запущено!")
+print("✅ Зеркало (полное меню) запущено!")
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
