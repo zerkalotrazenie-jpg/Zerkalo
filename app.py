@@ -5,12 +5,19 @@ import time
 import threading
 from datetime import datetime
 from groq import Groq
-from flask import Flask, request
+from flask import Flask
 
-# --- Заглушка для Render (Flask сервер) ---
+# --- Flask-приложение для "заглушки" (чтобы Render не жаловался) ---
 app_flask = Flask(__name__)
 
-# --- Основной код бота ---
+@app_flask.route('/')
+def home():
+    return "Зеркало работает (Polling mode)!", 200
+
+def run_flask():
+    app_flask.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
+# --- Основной код бота (ваш код, без изменений) ---
 TOKEN = os.environ.get("BOT_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
@@ -277,35 +284,12 @@ threading.Thread(target=update_status_worker, daemon=True).start()
 
 print("✅ Зеркало (полная версия, 150+ сур) запущено!")
 
-# --- Flask route для Webhook (для Render) ---
-@app_flask.route('/webhook', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return 'OK', 200
-    else:
-        return 'Unsupported Media Type', 415
-
-@app_flask.route('/')
-def home():
-    return "Зеркало работает!", 200
-
-def run_flask():
-    app_flask.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-
-# --- Главный запуск ---
+# --- Финальный запуск (без веб-хука, только polling и Flask-заглушка) ---
 if __name__ == "__main__":
-    # Удаляем веб-хук на случай, если он был от старого бота
+    # Убедимся, что веб-хук отключен навсегда
     bot.remove_webhook()
-    
-    # Если приложение запущено на Render, используем Webhook
-    if 'RENDER' in os.environ:
-        webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/webhook"
-        bot.set_webhook(url=webhook_url)
-        # Запускаем Flask сервер
-        app_flask.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-    else:
-        # Для локального теста используем Polling
-        bot.infinity_polling()
+    # Запускаем Flask в отдельном потоке
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
+    # Запускаем polling
+    bot.infinity_polling()
