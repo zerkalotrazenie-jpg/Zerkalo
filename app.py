@@ -111,13 +111,13 @@ def handle_all_messages(message):
         bot.send_message(user_id, "👑 **Панель Хранителя**", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
         return
 
-    # --- ОБЫЧНЫЕ ПОЛЬЗОВАТЕЛИ ---
+    # --- КНОПКИ ОБЫЧНОГО ПОЛЬЗОВАТЕЛЯ ---
     if text == "💳 оплатить":
         msg = bot.reply_to(message, "💳 Введите сумму в тенге:")
         bot.register_next_step_handler(msg, process_payment)
         return
     if text == "📦 создать заказ":
-        msg = bot.reply_to(message, "📦 Опишите ваш заказ (например: нужен сварщик для ремонта труб):")
+        msg = bot.reply_to(message, "📦 Опишите ваш заказ:")
         bot.register_next_step_handler(msg, create_order)
         return
     if text == "🔍 найти заказ":
@@ -128,7 +128,7 @@ def handle_all_messages(message):
         bot.register_next_step_handler(msg, ask_question)
         return
 
-    # --- ПРЕДПРИНИМАТЕЛИ ---
+    # --- КНОПКИ ПРЕДПРИНИМАТЕЛЯ ---
     if text == "🤖 автоматизация":
         bot.reply_to(message, "🤖 *Автоматизация бизнеса*\n\nПодключим iiko, Kaspi Pay и другие системы. Заявка: /business", parse_mode="Markdown")
         return
@@ -265,6 +265,7 @@ def handle_all_messages(message):
             help_admin(message)
             return
 
+    # --- ПОМОЩЬ ДЛЯ ОБЫЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ---
     if text == "🆘 помощь":
         help_user(message)
         return
