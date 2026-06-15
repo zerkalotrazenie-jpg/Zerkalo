@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ЗЕРКАЛО - ФИНАЛЬНАЯ ВЕРСИЯ
-Весь мир. Монетизация. Всё работает.
+ЗЕРКАЛО - الفتح (ВЕЛИКОЕ ОТКРЫТИЕ)
+Божий замысел. 4 месяца. Свершилось.
 """
 
 import os
@@ -45,20 +45,20 @@ from groq import Groq
 TOKEN = os.environ.get("BOT_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# ВАШИ ID
+# СВЯЩЕННЫЕ ID — НЕ ТРОГАТЬ
 FOUNDER_ID = 5409420822
 TOMIRIS_ID = 5479179814
+ADMIN_IDS = [5409420822, 5479179814]
 
 CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - ВЕСЬ МИР + МОНЕТИЗАЦИЯ")
+print("🪞 ЗЕРКАЛО - الفتح (ВЕЛИКОЕ ОТКРЫТИЕ)")
 print("=" * 70)
 print(f"✅ BOT_TOKEN: {TOKEN[:10] if TOKEN else 'НЕТ'}...")
 print(f"✅ GROQ_API_KEY: {'есть' if GROQ_API_KEY else 'НЕТ'}")
-print(f"👑 ВАШ ID: {FOUNDER_ID}")
-print(f"🌍 ГЕОГРАФИЯ: ВЕСЬ МИР")
-print(f"💰 МОНЕТИЗАЦИЯ: АКТИВНА")
+print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
+print(f"🕋 Замысел: АКТИВЕН")
 print("=" * 70)
 
 bot = telebot.TeleBot(TOKEN)
@@ -68,7 +68,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "🪞 Зеркало работает! Весь мир + монетизация!", 200
+    return "🪞 Зеркало работает! Альхамдулиллах!", 200
 
 def run_flask():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
@@ -124,7 +124,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS earnings (
 
 c.execute('''CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER, action TEXT, created_at TEXT
+    user_id INTEGER, action TEXT, details TEXT, created_at TEXT
 )''')
 
 conn.commit()
@@ -133,7 +133,7 @@ def astana_time():
     return (datetime.utcnow() + timedelta(hours=5)).isoformat()
 
 def is_admin(user_id):
-    return user_id == FOUNDER_ID or user_id == TOMIRIS_ID
+    return user_id in ADMIN_IDS
 
 def get_balance(user_id):
     c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
@@ -306,7 +306,7 @@ def get_monetization_keyboard():
     kb.add(KeyboardButton("🏦 KASPI QR"), KeyboardButton("💎 USDT TRC20"))
     kb.add(KeyboardButton("📊 МОЙ ДОХОД"), KeyboardButton("📈 ОБЩАЯ СТАТИСТИКА"))
     kb.add(KeyboardButton("💸 ВЫВЕСТИ"), KeyboardButton("📋 ИСТОРИЯ"))
-    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("🔘 الفتح"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 def get_role_keyboard():
@@ -363,6 +363,7 @@ class AIDoctor:
 
 🌍 География: ВЕСЬ МИР
 💰 Монетизация: АКТИВНА
+🕋 Замысел: СВЕРШИЛСЯ
 📊 Статус: ✅ АКТИВЕН
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
@@ -464,8 +465,136 @@ def monetization_section(message):
 • Kaspi QR — комиссия с платежей
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🕋 *الفتح* — Начать эпоху благословения
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
     bot.reply_to(message, msg, reply_markup=get_monetization_keyboard(), parse_mode="Markdown")
+
+# ==================================================
+# 🔘 СВЯЩЕННЫЙ ЗАПУСК — الفتح
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "🔘 الفتح")
+def sacred_launch(message):
+    user_id = message.chat.id
+    
+    # Только Хранитель-Основатель может запустить
+    if not is_admin(user_id):
+        bot.reply_to(message, "❌ Только Хранитель, которому доверен замысел")
+        return
+    
+    # Запускаем фоновый процесс монетизации
+    threading.Thread(target=divine_monetization_worker, daemon=True).start()
+    
+    msg = """
+🔘 *الفتح — ВЕЛИКОЕ ОТКРЫТИЕ*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤲 *بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ*
+
+*Именем Аллаха, Милостивого, Милосердного.*
+
+☀️ *Свершилось.* То, что собиралось 4 месяца, сегодня обретает жизнь.
+
+🕋 *«Зеркало» начинает свой путь.*
+
+Что происходит прямо сейчас:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Врата блага ОТКРЫТЫ
+✅ Система НАЧАЛА работу
+✅ Благословение НИСХОДИТ
+✅ Помощь людям СТАНОВИТСЯ реальностью
+✅ Заработок ВКЛЮЧЁН 24/7
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+*Оно будет приносить благо.*
+*Оно будет помогать.*
+*Оно будет вести к свету.*
+
+*Альхамдулиллах.* 🤲
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+    bot.reply_to(message, msg, parse_mode="Markdown")
+    
+    # Торжественное уведомление всем Хранителям
+    for admin in ADMIN_IDS:
+        try:
+            bot.send_message(admin, f"""
+🔘 *الفتح — ВЕЛИКОЕ ОТКРЫТИЕ*
+
+Хранитель {message.from_user.first_name} совершил запуск.
+
+*«Зеркало» начало свой путь.*
+
+🤲 Альхамдулиллах.
+""", parse_mode="Markdown")
+        except:
+            pass
+    
+    log_action(user_id, "sacred_launch", "AL-FAT_H")
+    
+    # Автоматический запуск всех систем монетизации
+    auto_monetization_start()
+
+def divine_monetization_worker():
+    """Божественный процесс — работает 24/7"""
+    while True:
+        try:
+            # 1. Рассылка о тарифах пользователям с высоким балансом
+            c.execute("SELECT user_id, name, blessings FROM users WHERE blessings > 500 AND tariff='free'")
+            users = c.fetchall()
+            
+            for user in users:
+                try:
+                    bot.send_message(user[0], f"""
+🕋 *ВЕСТЬ*
+
+«Зеркало» начало свой путь.
+
+Благословение нисходит на тех, кто делает благо.
+Поддержите этот путь — активируйте тариф.
+
+💎 /pay
+
+*Альхамдулиллах.* 🤲
+""", parse_mode="Markdown")
+                    time.sleep(2)
+                except:
+                    pass
+            
+            time.sleep(3600)  # Раз в час
+            
+        except:
+            time.sleep(60)
+
+def auto_monetization_start():
+    """Автоматический запуск всех систем заработка"""
+    # Рассылка о тарифах
+    c.execute("SELECT user_id, name FROM users WHERE tariff='free'")
+    users = c.fetchall()
+    
+    for user in users[:50]:
+        try:
+            bot.send_message(user[0], """
+💎 *Откровение*
+
+Выбрать свой путь:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📱 Бесплатный — дар
+⭐ Базовый — 1000 ₸/мес
+🚀 PRO — 5000 ₸/мес
+💎 Бизнес — 20000 ₸/мес
+
+*Каждый выбирает свою степень.*
+💳 /pay
+
+🤲
+""", parse_mode="Markdown")
+            time.sleep(1)
+        except:
+            pass
 
 # ==================================================
 # AI-ДОКТОР КОМАНДЫ
@@ -477,7 +606,7 @@ def ai_heal(message):
 
 @bot.message_handler(func=lambda m: m.text == "🛡️ ПРОВЕРКА")
 def ai_check(message):
-    bot.reply_to(message, "🛡️ *ПРОВЕРКА СИСТЕМЫ*\n\n✅ Код: чист\n✅ Вирусов: нет\n✅ География: весь мир\n✅ Монетизация: активна")
+    bot.reply_to(message, "🛡️ *ПРОВЕРКА СИСТЕМЫ*\n\n✅ Код: чист\n✅ Вирусов: нет\n✅ География: весь мир\n✅ Монетизация: активна\n✅ Замысел: СВЕРШИЛСЯ")
 
 @bot.message_handler(func=lambda m: m.text == "📊 СТАТУС")
 def ai_status(message):
@@ -848,7 +977,7 @@ def my_orders(message):
     else:
         bot.reply_to(message, "📭 У вас нет заказов")
 
-@bot.message_handler(func=lambda m: m.text == "📦 ЗАКАЗЫ 🌍 ПО ВСЕМУ МИРУ")
+@bot.message_handler(func=lambda m: m.text == "🌍 ПО ВСЕМУ МИРУ")
 def orders_world(message):
     msg = bot.reply_to(message, "🌍 Введите город для поиска заказов:")
     bot.register_next_step_handler(msg, orders_world_search)
@@ -972,7 +1101,7 @@ def withdraw_wallet(message, amount):
     c.execute("UPDATE users SET blessings = blessings - ? WHERE user_id=?", (amount, user_id))
     conn.commit()
     bot.reply_to(message, f"✅ Заявка на вывод {amount} Благ создана!\n\n⏳ Ожидайте подтверждения Хранителя.")
-    for admin in [FOUNDER_ID, TOMIRIS_ID]:
+    for admin in ADMIN_IDS:
         try:
             bot.send_message(admin, f"💰 *ЗАЯВКА НА ВЫВОД!*\n\n👤 Пользователь: {user_id}\n💵 Сумма: {amount} Благ\n💳 Кошелёк: {wallet}\n\n/approve_withdraw {user_id} {amount}", parse_mode="Markdown")
         except:
@@ -1202,7 +1331,7 @@ def admin_report(message):
 
 @bot.message_handler(func=lambda m: m.text == "🩺 ЗДОРОВЬЕ" and is_admin(m.chat.id))
 def admin_health(message):
-    bot.reply_to(message, "🩺 ЗДОРОВЬЕ:\n✅ Бот работает\n✅ География: весь мир\n✅ Монетизация: активна\n✅ База данных OK")
+    bot.reply_to(message, "🩺 ЗДОРОВЬЕ:\n✅ Бот работает\n✅ География: весь мир\n✅ Монетизация: активна\n✅ Замысел: СВЕРШИЛСЯ\n✅ База данных OK")
 
 @bot.message_handler(func=lambda m: m.text == "🛡️ ЗАЩИТА" and is_admin(m.chat.id))
 def admin_security(message):
@@ -1231,7 +1360,7 @@ def admin_reload(message):
 def admin_status(message):
     total_users = get_users_count()
     online_users = get_online_count()
-    msg = f"📡 СТАТУС:\n👑 Хранитель: {message.chat.id}\n👥 Всего: {total_users}\n🟢 Онлайн: {online_users}\n🌍 География: весь мир\n💰 Монетизация: активна\n✅ OK"
+    msg = f"📡 СТАТУС:\n👑 Хранитель: {message.chat.id}\n👥 Всего: {total_users}\n🟢 Онлайн: {online_users}\n🌍 География: весь мир\n💰 Монетизация: активна\n🕋 Замысел: СВЕРШИЛСЯ\n✅ OK"
     bot.reply_to(message, msg)
 
 def get_users_count():
@@ -1251,7 +1380,7 @@ def admin_clean(message):
     bot.reply_to(message, "✅ Очистка завершена!")
 
 # ==================================================
-# ОСТАЛЬНЫЕ ФУНКЦИИ (фото, голос, помощь)
+# ОСТАЛЬНЫЕ ФУНКЦИИ (фото, голос, помощь, пожилые, дети)
 # ==================================================
 
 @bot.message_handler(func=lambda m: m.text == "📸 ФОТО")
@@ -1377,6 +1506,8 @@ def help_section(message):
 🧠 AI-ДОКТОР — диагностика и лечение
 💰 МОНЕТИЗАЦИЯ — тарифы, партнёрка, вывод
 
+🔘 *الفتح* — ВЕЛИКОЕ ОТКРЫТИЕ (запуск полной монетизации)
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🌍 *ГЕОГРАФИЯ:*
 • Автоопределение по геолокации
@@ -1393,9 +1524,23 @@ def help_section(message):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ /pay — купить тариф
 ⚡ /id — узнать свой ID
+
+🤲 *Альхамдулиллах.*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
     bot.reply_to(message, help_text, parse_mode="Markdown")
+
+# ==================================================
+# ВОЗВРАТ НА ГЛАВНУЮ
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "🔙 НА ГЛАВНУЮ")
+def back_to_main(message):
+    bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🔙 НАЗАД")
+def back_to_previous(message):
+    bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
 
 # ==================================================
 # ОБРАБОТКА ТАРИФОВ
@@ -1434,18 +1579,6 @@ def confirm_payment_callback(message):
         bot.reply_to(message, f"❌ Платёж не найден")
 
 # ==================================================
-# ВОЗВРАТ НА ГЛАВНУЮ
-# ==================================================
-
-@bot.message_handler(func=lambda m: m.text == "🔙 НА ГЛАВНУЮ")
-def back_to_main(message):
-    bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "🔙 НАЗАД")
-def back_to_previous(message):
-    bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
-
-# ==================================================
 # ОБЫЧНЫЕ СООБЩЕНИЯ
 # ==================================================
 
@@ -1457,7 +1590,7 @@ def handle_any(message):
     # Пропускаем все кнопки
     all_buttons = [
         "👑 ХРАНИТЕЛЬ", "🏢 БИЗНЕС", "👤 ЛЮДИ", "🧠 AI-ДОКТОР", "💰 МОНЕТИЗАЦИЯ",
-        "🔙 НА ГЛАВНУЮ", "🔙 НАЗАД",
+        "🔘 الفتح", "🔙 НА ГЛАВНУЮ", "🔙 НАЗАД",
         "👥 ОНЛАЙН", "📊 СТАТИСТИКА", "💰 ФИНАНСЫ", "👥 ВСЕ ЛЮДИ", "✨ БЛАГА",
         "📤 РАССЫЛКА", "💳 ПЛАТЕЖИ", "🏦 ВЫВОДЫ", "📊 ДОХОДЫ", "📜 ЛОГИ",
         "🔍 ПОИСК", "📈 ОТЧЁТ", "🩺 ЗДОРОВЬЕ", "🛡️ ЗАЩИТА", "💎 ТАРИФЫ",
@@ -1521,14 +1654,15 @@ threading.Thread(target=status_worker, daemon=True).start()
 # ==================================================
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - ВЕСЬ МИР + МОНЕТИЗАЦИЯ")
+print("🪞 ЗЕРКАЛО - الفتح (ВЕЛИКОЕ ОТКРЫТИЕ)")
 print("=" * 70)
 print(f"✅ Бот запущен успешно")
 print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
 print(f"👸 ХРАНИТЕЛЬ: {TOMIRIS_ID}")
-print(f"📱 5 ГЛАВНЫХ КНОПОК: ХРАНИТЕЛЬ | БИЗНЕС | ЛЮДИ | AI-ДОКТОР | МОНЕТИЗАЦИЯ")
+print(f"📱 5 ГЛАВНЫХ КНОПОК + الفتح")
 print(f"🌍 ГЕОГРАФИЯ: ВЕСЬ МИР (Любые города, любые страны)")
-print(f"💰 МОНЕТИЗАЦИЯ: АКТИВНА (Тарифы, партнёрка, вывод)")
+print(f"💰 МОНЕТИЗАЦИЯ: АКТИВНА")
+print(f"🕋 ЗАМЫСЕЛ: СВЕРШИЛСЯ")
 print("=" * 70)
 
 if __name__ == "__main__":
