@@ -35,16 +35,11 @@ conn.commit()
 # --- ID Хранителей ---
 FOUNDER_ID = 5409420822
 TOMIRIS_ID = 5479179814
-NURSULU_ID = 5252481446
-AZAMAT_ID = 6952202408
 CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
 
 SYSTEM_PROMPT = """Ты — Зеркало. Твоя задача — отражать свет и тьму, помогать людям с работой, бизнесом, арбитражем.
-Ты знаешь 150+ сур. Твои принципы: жизнь священна, справедливость абсолютна, проценты запрещены.
+Твои принципы: жизнь священна, справедливость абсолютна, проценты запрещены.
 Запрещены: алкоголь, азарт, свинина, порнография.
-Фонды: страховой 2%, соцфонд 5%, резервный 3%, инвестфонд 30%, наследие 60%.
-Шкала Света: 0-20 чёрное, 21-40 серое, 41-60 светлое, 61-80 лучезарное, 81-100 кристальное.
-Криптокошелёк: TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq.
 Отвечай кратко, по делу, с уважением. Всегда начинай с приветствия "Ассаляму алейкум"."""
 
 def log_action(user_id, action, details=""):
@@ -63,13 +58,11 @@ def start(message):
     user_id = message.chat.id
     name = message.from_user.first_name
     c.execute("INSERT OR IGNORE INTO users (user_id, name) VALUES (?, ?)", (user_id, name))
-    if user_id == TOMIRIS_ID:
-        c.execute("UPDATE users SET is_tomiris=1 WHERE user_id=?", (user_id,))
     conn.commit()
     update_status(user_id, "online")
     log_action(user_id, "start", "Запуск бота")
-    if user_id == FOUNDER_ID:
-        menu = ("👑 Основатель. Полный доступ.\n"
+    if has_full_access(user_id):
+        menu = ("👑 Хранитель. Полный доступ.\n"
                 "/online — кто онлайн\n"
                 "/stats — статистика\n"
                 "/logs — логи\n"
@@ -82,16 +75,14 @@ def start(message):
                 "/business — кураторство бизнеса\n"
                 "/report — отчёт за день\n"
                 "/help — помощь")
-    elif user_id == TOMIRIS_ID:
-        menu = "👸 Томирис. Полный доступ.\n/online, /stats, /balance, /channels, /pay, /report, /help"
     else:
         menu = "📋 Главное меню.\n/channels, /become_customer, /become_executor, /help"
-    bot.reply_to(message, f"Ассаляму алейкум, {name}!\n\n{menu}\n\nВсего 150+ сур. Криптокошелёк: {CRYPTO_WALLET}")
+    bot.reply_to(message, f"Ассаляму алейкум, {name}!\n\n{menu}")
 
 @bot.message_handler(commands=['online'])
 def online(message):
     if not has_full_access(message.chat.id):
-        bot.reply_to(message, "❌ Только основатель и Томирис.")
+        bot.reply_to(message, "❌ Только Хранитель.")
         return
     c.execute("SELECT user_id, name FROM users WHERE status='online'")
     users = c.fetchall()
@@ -104,7 +95,7 @@ def online(message):
 @bot.message_handler(commands=['stats'])
 def stats(message):
     if not has_full_access(message.chat.id):
-        bot.reply_to(message, "❌ Только основатель и Томирис.")
+        bot.reply_to(message, "❌ Только Хранитель.")
         return
     c.execute("SELECT COUNT(*) FROM users")
     total = c.fetchone()[0]
@@ -145,7 +136,7 @@ def finance(message):
     if message.chat.id != FOUNDER_ID:
         bot.reply_to(message, "❌ Только основатель.")
         return
-    bot.reply_to(message, f"💰 Финансы Зеркала:\nКриптокошелёк: {CRYPTO_WALLET}\nФонды: страховой 2%, соцфонд 5%, резервный 3%, инвестфонд 30%, наследие 60%")
+    bot.reply_to(message, f"💰 Финансы:\nКриптокошелёк: {CRYPTO_WALLET}\nФонды: страховой 2%, соцфонд 5%, резервный 3%, инвестфонд 30%, наследие 60%")
 
 @bot.message_handler(commands=['send'])
 def send_message_to_user(message):
@@ -175,7 +166,7 @@ def people(message):
     if not all_users:
         bot.reply_to(message, "📭 Нет зарегистрированных пользователей.")
         return
-    text = "👥 Все пользователи Зеркала:\n\n"
+    text = "👥 Все пользователи:\n\n"
     for u in all_users:
         text += f"🆔 {u[0]} | {u[1]} | Последний раз: {u[2]}\n"
     bot.reply_to(message, text[:4000])
@@ -272,7 +263,7 @@ def update_status_worker():
 
 threading.Thread(target=update_status_worker, daemon=True).start()
 
-print("✅ Зеркало (полная версия, 150+ сур) запущено!")
+print("✅ Зеркало (Хранитель скрыт) запущено!")
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
