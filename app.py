@@ -106,7 +106,7 @@ def handle_all_messages(message):
         log_action(user_id, "set_role", "business")
         return
 
-    # --- ПАНЕЛЬ ХРАНИТЕЛЯ ---
+    # --- ПАНЕЛЬ ХРАНИТЕЛЯ (по слову "панель") ---
     if text == "панель" and is_admin(user_id):
         bot.send_message(user_id, "👑 **Панель Хранителя**", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
         return
@@ -400,7 +400,7 @@ def start(message):
     update_status(user_id, "online")
     log_action(user_id, "start", "Запуск бота")
     if is_admin(user_id):
-        bot.reply_to(message, f"👑 Ассаляму алейкум, Хранитель {name}!\n\nЯ — Зеркало.\n\nНапишите **панель**, чтобы открыть управление.", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
+        bot.reply_to(message, f"👑 Ассаляму алейкум, Хранитель {name}!\n\nЯ — Зеркало.", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
     else:
         bot.reply_to(message, f"📋 Ассаляму алейкум, {name}!\n\nЯ — Зеркало. Вы получили 100 Благ в подарок.\n\nКто вы?", reply_markup=get_role_keyboard())
 
