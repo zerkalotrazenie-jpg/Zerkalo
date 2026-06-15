@@ -4,9 +4,10 @@ import sqlite3
 import time
 import threading
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from groq import Groq
 from flask import Flask
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 app_flask = Flask(__name__)
 
@@ -35,26 +36,239 @@ FOUNDER_ID = 5409420822
 TOMIRIS_ID = 5479179814
 CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
 
+def astana_time():
+    return (datetime.utcnow() + timedelta(hours=5)).isoformat()
+
 SYSTEM_PROMPT = """Ты — Зеркало. Твоя задача — отражать свет и тьму, помогать людям с работой, бизнесом, арбитражем.
-Твои принципы: жизнь священна, справедливость абсолютна, проценты запрещены.
-Запрещены: алкоголь, азарт, свинина, порнография.
-Отвечай кратко, по делу, с уважением. Всегда начинай с приветствия "Ассаляму алейкум"."""
+Отвечай кратко, по делу, с уважением. Всегда начинай с "Ассаляму алейкум"."""
 
 def log_action(user_id, action, details=""):
-    c.execute("INSERT INTO logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)", (user_id, action, details, datetime.now().isoformat()))
+    c.execute("INSERT INTO logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)", (user_id, action, details, astana_time()))
     conn.commit()
 
 def update_status(user_id, status):
-    c.execute("UPDATE users SET status=?, last_seen=? WHERE user_id=?", (status, datetime.now().isoformat(), user_id))
+    c.execute("UPDATE users SET status=?, last_seen=? WHERE user_id=?", (status, astana_time(), user_id))
     conn.commit()
 
 def has_full_access(user_id):
     return user_id in [FOUNDER_ID, TOMIRIS_ID]
 
-def generate_kaspi_qr(amount, description="Оплата услуг Зеркала"):
-    """Генерирует тестовую ссылку на Kaspi QR"""
-    return f"https://test.kaspi.kz/qr/pay?amount={amount}&merchant=Zerkalo&description={description}&order_id={random.randint(100000, 999999)}"
+def generate_kaspi_qr(amount):
+    return f"https://test.kaspi.kz/qr/pay?amount={amount}&merchant=Zerkalo&order_id={random.randint(100000, 999999)}"
 
+# --- КЛАВИАТУРЫ ---
+def get_main_keyboard():
+    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    keyboard.add(KeyboardButton("💳 Оплатить"), KeyboardButton("📦 Создать заказ"))
+    keyboard.add(KeyboardButton("🔍 Найти заказ"), KeyboardButton("❓ Задать вопрос"))
+    keyboard.add(KeyboardButton("🆘 Помощь"))
+    return keyboard
+
+def get_admin_keyboard():
+    keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    keyboard.add(KeyboardButton("👥 Онлайн"), KeyboardButton("📊 Статистика"))
+    keyboard.add(KeyboardButton("💰 Финансы"), KeyboardButton("📋 Отчёт"))
+    keyboard.add(KeyboardButton("📜 Логи"), KeyboardButton("👤 Все люди"))
+    keyboard.add(KeyboardButton("📦 Заказы"), KeyboardButton("💳 Оплатить"))
+    keyboard.add(KeyboardButton("🆘 Помощь"))
+    return keyboard
+
+# --- ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ (КНОПКИ И КОМАНДЫ) ---
+@bot.message_handler(func=lambda message: True)
+def handle_all_messages(message):
+    user_id = message.chat.id
+    text = message.text.strip().lower()
+    
+    # --- КОМАНДА "панель" (для Хранителя) ---
+    if text == "панель" and has_full_access(user_id):
+        bot.send_message(user_id, "👑 Панель управления Хранителя:", reply_markup=get_admin_keyboard())
+        return
+        
+    # --- КНОПКИ ДЛЯ ВСЕХ ---
+    if text == "💳 оплатить":
+        msg = bot.reply_to(message, "💳 Введите сумму в тенге:")
+        bot.register_next_step_handler(msg, process_payment)
+        return
+        
+    if text == "📦 создать заказ":
+        msg = bot.reply_to(message, "📦 Опишите заказ (например: нужен сварщик для ремонта труб):")
+        bot.register_next_step_handler(msg, create_order)
+        return
+        
+    if text == "🔍 найти заказ":
+        find_orders(message)
+        return
+        
+    if text == "❓ задать вопрос":
+        msg = bot.reply_to(message, "❓ Введите ваш вопрос:")
+        bot.register_next_step_handler(msg, ask_question)
+        return
+        
+    if text == "🆘 помощь":
+        if has_full_access(user_id):
+            help_admin(message)
+        else:
+            help_user(message)
+        return
+    
+    # --- КНОПКИ ТОЛЬКО ДЛЯ ХРАНИТЕЛЯ ---
+    if has_full_access(user_id):
+        if text == "👥 онлайн":
+            online_command(message)
+            return
+        if text == "📊 статистика":
+            stats_command(message)
+            return
+        if text == "💰 финансы":
+            finance_command(message)
+            return
+        if text == "📋 отчёт":
+            report_command(message)
+            return
+        if text == "📜 логи":
+            logs_command(message)
+            return
+        if text == "👤 все люди":
+            people_command(message)
+            return
+        if text == "📦 заказы":
+            orders_command(message)
+            return
+    
+    # --- ЕСЛИ НИ ОДНА КНОПКА НЕ ПОДОШЛА ---
+    update_status(user_id, "online")
+    log_action(user_id, "message", message.text[:100])
+    try:
+        response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": message.text}], temperature=0.7)
+        bot.reply_to(message, response.choices[0].message.content[:4000])
+    except:
+        bot.reply_to(message, "❌ Ошибка. Попробуйте ещё раз.")
+
+# --- ФУНКЦИИ ОБРАБОТКИ ---
+def process_payment(message):
+    try:
+        amount = int(message.text)
+        if amount < 1:
+            bot.reply_to(message, "❌ Сумма должна быть больше 0.")
+            return
+        user_id = message.chat.id
+        qr_data = generate_kaspi_qr(amount)
+        c.execute("INSERT INTO payments (user_id, amount, method, status, qr_data, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                  (user_id, amount, "Kaspi QR", "pending", qr_data, astana_time()))
+        conn.commit()
+        bot.reply_to(message, f"🧾 *Оплата*: {amount} тенге\n\n📱 QR-код:\n{qr_data}\n\n*(Тестовый режим)*", parse_mode="Markdown")
+        log_action(user_id, "pay", f"Сумма: {amount}")
+    except ValueError:
+        bot.reply_to(message, "❌ Введите число.")
+
+def create_order(message):
+    user_id = message.chat.id
+    description = message.text
+    price = random.randint(5000, 50000)
+    c.execute("INSERT INTO orders (title, description, price, customer_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+              ("Заказ от пользователя", description, price, user_id, "open", astana_time()))
+    conn.commit()
+    bot.reply_to(message, f"✅ Заказ создан!\n📝 Описание: {description}\n💰 Цена: {price} тенге\nСтатус: открыт")
+    log_action(user_id, "create_order", f"Цена: {price}")
+
+def find_orders(message):
+    c.execute("SELECT id, title, description, price FROM orders WHERE status='open' LIMIT 5")
+    orders = c.fetchall()
+    if not orders:
+        bot.reply_to(message, "📭 Открытых заказов нет.")
+        return
+    text = "📋 *Открытые заказы:*\n\n"
+    for o in orders:
+        text += f"🆔 {o[0]}\n📌 {o[1]}\n📝 {o[2][:50]}...\n💰 {o[3]} тг\n\n"
+    bot.reply_to(message, text, parse_mode="Markdown")
+
+def ask_question(message):
+    user_id = message.chat.id
+    question = message.text
+    try:
+        response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": question}], temperature=0.7)
+        bot.reply_to(message, response.choices[0].message.content[:4000])
+    except:
+        bot.reply_to(message, "❌ Ошибка. Попробуйте ещё раз.")
+
+def help_user(message):
+    bot.reply_to(message, "📋 *Помощь*\n\n"
+                         "💳 *Оплатить* — оплатить услугу\n"
+                         "📦 *Создать заказ* — создать заказ на работу\n"
+                         "🔍 *Найти заказ* — найти открытые заказы\n"
+                         "❓ *Задать вопрос* — спросить у меня что угодно\n"
+                         "🆘 *Помощь* — показать это сообщение\n\n"
+                         "Также вы можете просто писать мне сообщения — я отвечу.", parse_mode="Markdown")
+
+def help_admin(message):
+    bot.reply_to(message, "👑 *Панель Хранителя*\n\n"
+                         "👥 *Онлайн* — кто сейчас в сети\n"
+                         "📊 *Статистика* — общая статистика\n"
+                         "💰 *Финансы* — криптокошелёк и фонды\n"
+                         "📋 *Отчёт* — что нового за сегодня\n"
+                         "📜 *Логи* — последние действия\n"
+                         "👤 *Все люди* — список пользователей\n"
+                         "📦 *Заказы* — список заказов\n"
+                         "💳 *Оплатить* — оплатить услугу\n\n"
+                         "Также вы можете отправлять команды вручную.", parse_mode="Markdown")
+
+def online_command(message):
+    c.execute("SELECT user_id, name FROM users WHERE status='online'")
+    users = c.fetchall()
+    if not users:
+        bot.reply_to(message, "🟢 Никого нет онлайн.")
+        return
+    text = "🟢 Онлайн:\n" + "\n".join([f"{u[1]} (ID: {u[0]})" for u in users])
+    bot.reply_to(message, text)
+
+def stats_command(message):
+    c.execute("SELECT COUNT(*) FROM users")
+    total = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM orders")
+    orders = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM orders WHERE status='open'")
+    open_orders = c.fetchone()[0]
+    bot.reply_to(message, f"📊 Статистика:\n👥 Пользователей: {total}\n📋 Заказов: {orders}\n🆓 Открытых: {open_orders}")
+
+def finance_command(message):
+    bot.reply_to(message, f"💰 Криптокошелёк: {CRYPTO_WALLET}\n\nФонды:\n🏦 Страховой: 2%\n🤝 Социальный: 5%\n📦 Резервный: 3%\n📈 Инвестиционный: 30%\n🏛️ Наследие: 60%")
+
+def report_command(message):
+    today = datetime.now().strftime('%Y-%m-%d')
+    c.execute("SELECT COUNT(*) FROM users WHERE last_seen LIKE ?", (f"{today}%",))
+    new_users = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM orders WHERE created_at LIKE ?", (f"{today}%",))
+    new_orders = c.fetchone()[0]
+    bot.reply_to(message, f"📋 Отчёт за {today}:\n➕ Новых пользователей: {new_users}\n📦 Новых заказов: {new_orders}")
+
+def logs_command(message):
+    c.execute("SELECT user_id, action, details, created_at FROM logs ORDER BY id DESC LIMIT 10")
+    log_entries = c.fetchall()
+    if not log_entries:
+        bot.reply_to(message, "📭 Логов нет.")
+        return
+    text = "📜 Последние 10 действий:\n" + "\n".join([f"{e[3][:16]} ID:{e[0]} {e[1]} {e[2]}" for e in log_entries])
+    bot.reply_to(message, text[:4000])
+
+def people_command(message):
+    c.execute("SELECT user_id, name, last_seen FROM users")
+    all_users = c.fetchall()
+    if not all_users:
+        bot.reply_to(message, "📭 Нет пользователей.")
+        return
+    text = "👥 Все пользователи:\n" + "\n".join([f"🆔 {u[0]} | {u[1]} | последний раз: {u[2][:16]}" for u in all_users])
+    bot.reply_to(message, text[:4000])
+
+def orders_command(message):
+    c.execute("SELECT id, title, price, status FROM orders ORDER BY id DESC LIMIT 10")
+    order_list = c.fetchall()
+    if not order_list:
+        bot.reply_to(message, "📭 Заказов нет.")
+        return
+    text = "📋 Последние 10 заказов:\n" + "\n".join([f"🆔 {o[0]} | {o[1]} | {o[2]} тг | {o[3]}" for o in order_list])
+    bot.reply_to(message, text)
+
+# --- ОБРАБОТЧИК КОМАНДЫ /start ---
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.chat.id
@@ -64,157 +278,11 @@ def start(message):
     update_status(user_id, "online")
     log_action(user_id, "start", "Запуск бота")
     if has_full_access(user_id):
-        menu = ("👑 Хранитель. Полный доступ.\n\n"
-                "📊 Управление:\n"
-                "/online — кто онлайн\n"
-                "/stats — статистика\n"
-                "/logs — логи\n"
-                "/orders — заказы\n"
-                "/finance — финансы\n"
-                "/send — отправить сообщение\n"
-                "/people — все люди\n"
-                "/history — история диалога\n\n"
-                "💳 Оплата и тестирование:\n"
-                "/pay — оплатить (как пользователь)\n"
-                "/test_payment ID СУММА — тест оплаты за пользователя\n"
-                "/payment_logs — логи всех оплат\n\n"
-                "⚙️ Другое:\n"
-                "/channels — каналы\n"
-                "/balance — фонды\n"
-                "/business — бизнес\n"
-                "/report — отчёт\n"
-                "/help — помощь")
+        bot.reply_to(message, f"👑 Ассаляму алейкум, Хранитель {name}!\n\nЯ — Зеркало. Напишите «панель», чтобы открыть управление.", reply_markup=get_admin_keyboard())
     else:
-        menu = ("📋 Главное меню\n\n"
-                "/channels — каналы\n"
-                "/become_customer — стать заказчиком\n"
-                "/become_executor — стать исполнителем\n"
-                "/pay — оплатить услугу\n"
-                "/help — помощь")
-    bot.reply_to(message, f"Ассаляму алейкум, {name}!\n\n{menu}")
+        bot.reply_to(message, f"📋 Ассаляму алейкум, {name}!\n\nЯ — Зеркало. Я помогу вам с работой, бизнесом и арбитражем.\n\nИспользуйте кнопки ниже, чтобы управлять мной.", reply_markup=get_main_keyboard())
 
-# --- ОПЛАТА (для обычного пользователя) ---
-@bot.message_handler(commands=['pay'])
-def pay_command(message):
-    msg = bot.reply_to(message, "💳 *Оплата услуги*\n\nВведите сумму в тенге (например, 1000):", parse_mode="Markdown")
-    bot.register_next_step_handler(msg, process_payment)
-
-def process_payment(message):
-    try:
-        amount = int(message.text)
-        if amount < 1:
-            bot.reply_to(message, "Сумма должна быть больше 0.")
-            return
-        user_id = message.chat.id
-        # Генерируем QR
-        qr_data = generate_kaspi_qr(amount)
-        # Сохраняем в базу
-        c.execute("INSERT INTO payments (user_id, amount, method, status, qr_data, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                  (user_id, amount, "Kaspi QR", "pending", qr_data, datetime.now().isoformat()))
-        conn.commit()
-        # Отправляем пользователю
-        bot.reply_to(message, f"🧾 *Оплата*: {amount} тенге\n\n"
-                             f"📱 Отсканируйте QR-код в приложении Kaspi:\n{qr_data}\n\n"
-                             f"*(Это тестовый режим. Реальная оплата появится после подключения Kaspi API.)*",
-                             parse_mode="Markdown")
-        log_action(user_id, "pay", f"Сумма: {amount} тенге, QR: {qr_data}")
-    except ValueError:
-        bot.reply_to(message, "Пожалуйста, введите число.")
-
-# --- ТЕСТОВАЯ ОПЛАТА ЗА ЛЮБОГО ПОЛЬЗОВАТЕЛЯ (только для Хранителя) ---
-@bot.message_handler(commands=['test_payment'])
-def test_payment(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    try:
-        parts = message.text.split()
-        target_id = int(parts[1])
-        amount = int(parts[2])
-        qr_data = generate_kaspi_qr(amount)
-        c.execute("INSERT INTO payments (user_id, amount, method, status, qr_data, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                  (target_id, amount, "Kaspi QR (тест)", "test", qr_data, datetime.now().isoformat()))
-        conn.commit()
-        bot.reply_to(message, f"✅ *Тестовая оплата для пользователя {target_id}*\n\n"
-                             f"💰 Сумма: {amount} тенге\n"
-                             f"📱 QR-код:\n{qr_data}\n\n"
-                             f"Пользователь получил бы такое сообщение.", parse_mode="Markdown")
-        log_action(FOUNDER_ID, "test_payment", f"Для {target_id}, сумма: {amount}")
-    except:
-        bot.reply_to(message, "❌ Формат: /test_payment ID СУММА")
-
-# --- ЛОГИ ВСЕХ ОПЛАТ (только для Хранителя) ---
-@bot.message_handler(commands=['payment_logs'])
-def payment_logs(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    c.execute("SELECT id, user_id, amount, method, status, qr_data, created_at FROM payments ORDER BY id DESC LIMIT 15")
-    payments = c.fetchall()
-    if not payments:
-        bot.reply_to(message, "📭 Нет записей об оплатах.")
-        return
-    text = "💳 *Логи оплат (последние 15):*\n\n"
-    for p in payments:
-        text += f"🆔 {p[0]} | 👤 {p[1]} | 💰 {p[2]} | 📌 {p[3]} | 🔄 {p[4]}\n🕐 {p[6][:16]}\n📱 QR: {p[5][:60]}...\n\n"
-    bot.reply_to(message, text[:4000], parse_mode="Markdown")
-
-# --- ОСТАЛЬНЫЕ КОМАНДЫ (сжато, но все важные есть) ---
-@bot.message_handler(commands=['online'])
-def online(message):
-    if not has_full_access(message.chat.id):
-        bot.reply_to(message, "❌ Только Хранитель.")
-        return
-    c.execute("SELECT user_id, name FROM users WHERE status='online'")
-    users = c.fetchall()
-    bot.reply_to(message, "🟢 Онлайн:\n" + "\n".join([f"{u[1]} (ID: {u[0]})" for u in users]) if users else "🟢 Никого нет.")
-
-@bot.message_handler(commands=['stats'])
-def stats(message):
-    if not has_full_access(message.chat.id):
-        bot.reply_to(message, "❌ Только Хранитель.")
-        return
-    c.execute("SELECT COUNT(*) FROM users")
-    total = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM orders")
-    orders = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM orders WHERE status='open'")
-    open_orders = c.fetchone()[0]
-    bot.reply_to(message, f"📊 Пользователей: {total}\n📋 Заказов: {orders}\n🆓 Открытых: {open_orders}")
-
-@bot.message_handler(commands=['logs'])
-def logs(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    c.execute("SELECT user_id, action, details, created_at FROM logs ORDER BY id DESC LIMIT 10")
-    log_entries = c.fetchall()
-    if not log_entries:
-        bot.reply_to(message, "📭 Логов нет.")
-        return
-    text = "📜 Последние 10 действий:\n" + "\n".join([f"{e[3][:16]} ID:{e[0]} {e[1]} {e[2]}" for e in log_entries])
-    bot.reply_to(message, text[:4000])
-
-@bot.message_handler(commands=['orders'])
-def orders(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    c.execute("SELECT id, title, price, status FROM orders ORDER BY id DESC LIMIT 10")
-    order_list = c.fetchall()
-    if not order_list:
-        bot.reply_to(message, "📭 Заказов нет.")
-        return
-    text = "📋 Последние 10 заказов:\n" + "\n".join([f"🆔 {o[0]} | {o[1]} | {o[2]} тг | {o[3]}" for o in order_list])
-    bot.reply_to(message, text)
-
-@bot.message_handler(commands=['finance'])
-def finance(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    bot.reply_to(message, f"💰 Криптокошелёк: {CRYPTO_WALLET}\nФонды: 2/5/3/30/60")
-
+# --- КОМАНДА /send (отправить сообщение) ---
 @bot.message_handler(commands=['send'])
 def send_message_to_user(message):
     if message.chat.id != FOUNDER_ID:
@@ -222,107 +290,57 @@ def send_message_to_user(message):
         return
     try:
         parts = message.text.split(maxsplit=2)
+        if len(parts) < 3:
+            bot.reply_to(message, "Формат: /send ID текст")
+            return
         target_id = int(parts[1])
         msg_text = parts[2]
         bot.send_message(target_id, f"✉️ Сообщение от Хранителя:\n{msg_text}")
         bot.reply_to(message, f"✅ Отправлено {target_id}")
+        log_action(FOUNDER_ID, "send_message", f"ID:{target_id} Текст:{msg_text[:50]}")
     except:
-        bot.reply_to(message, "Формат: /send ID текст")
+        bot.reply_to(message, "Ошибка. Проверьте ID и текст.")
 
-@bot.message_handler(commands=['people'])
-def people(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    c.execute("SELECT user_id, name, last_seen FROM users")
-    all_users = c.fetchall()
-    if not all_users:
-        bot.reply_to(message, "📭 Нет пользователей.")
-        return
-    text = "👥 Все пользователи:\n" + "\n".join([f"🆔 {u[0]} | {u[1]} | {u[2]}" for u in all_users])
-    bot.reply_to(message, text[:4000])
-
-@bot.message_handler(commands=['history'])
-def history(message):
+# --- КОМАНДА /test_payment ---
+@bot.message_handler(commands=['test_payment'])
+def test_payment(message):
     if message.chat.id != FOUNDER_ID:
         bot.reply_to(message, "❌ Только основатель.")
         return
     try:
-        target_id = int(message.text.split()[1])
-        c.execute("SELECT user_id, action, details, created_at FROM logs WHERE user_id=? ORDER BY id DESC LIMIT 20", (target_id,))
-        user_logs = c.fetchall()
-        if not user_logs:
-            bot.reply_to(message, f"📭 Нет истории для {target_id}")
+        parts = message.text.split()
+        if len(parts) != 3:
+            bot.reply_to(message, "Формат: /test_payment ID СУММА")
             return
-        text = f"📜 История {target_id}:\n" + "\n".join([f"{e[3][:16]} | {e[1]} | {e[2]}" for e in user_logs])
-        bot.reply_to(message, text[:4000])
-    except:
-        bot.reply_to(message, "Формат: /history ID")
-
-@bot.message_handler(commands=['channels'])
-def channels(message):
-    bot.reply_to(message, "📢 8 каналов Зеркала будут созданы.")
-
-@bot.message_handler(commands=['balance'])
-def balance(message):
-    if not has_full_access(message.chat.id):
-        bot.reply_to(message, "❌ Только Хранитель.")
-        return
-    bot.reply_to(message, "💰 Фонды: страховой 2%, соцфонд 5%, резервный 3%, инвестфонд 30%, наследие 60%")
-
-@bot.message_handler(commands=['report'])
-def report(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    today = datetime.now().strftime('%Y-%m-%d')
-    c.execute("SELECT COUNT(*) FROM users WHERE last_seen LIKE ?", (f"{today}%",))
-    new_users = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM orders WHERE created_at LIKE ?", (f"{today}%",))
-    new_orders = c.fetchone()[0]
-    bot.reply_to(message, f"📋 Отчёт за {today}:\n➕ Новых: {new_users}\n📦 Заказов: {new_orders}")
-
-@bot.message_handler(commands=['business'])
-def business(message):
-    if message.chat.id != FOUNDER_ID:
-        bot.reply_to(message, "❌ Только основатель.")
-        return
-    bot.reply_to(message, "Введите: название, БИН, контакт, телефон")
-    bot.register_next_step_handler(message, add_business)
-
-def add_business(message):
-    try:
-        parts = message.text.split(',')
-        name = parts[0].strip()
-        bin = parts[1].strip()
-        contact = parts[2].strip()
-        phone = parts[3].strip()
-        c.execute("INSERT INTO businesses (name, bin, contact_person, phone) VALUES (?, ?, ?, ?)", (name, bin, contact, phone))
+        target_id = int(parts[1])
+        amount = int(parts[2])
+        qr_data = generate_kaspi_qr(amount)
+        c.execute("INSERT INTO payments (user_id, amount, method, status, qr_data, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                  (target_id, amount, "Kaspi QR (тест)", "test", qr_data, astana_time()))
         conn.commit()
-        bot.reply_to(message, f"✅ Бизнес '{name}' добавлен.")
+        bot.reply_to(message, f"✅ *Тест оплаты для {target_id}*\n💰 Сумма: {amount} тенге\n📱 QR-код:\n{qr_data}\n\n*(Пользователь сообщение не получит)*", parse_mode="Markdown")
+        log_action(FOUNDER_ID, "test_payment", f"Для {target_id}, сумма: {amount}")
     except:
-        bot.reply_to(message, "❌ Ошибка. Формат: 'Название, БИН, Контакт, Телефон'")
+        bot.reply_to(message, "Ошибка. Используйте: /test_payment ID СУММА")
 
-@bot.message_handler(commands=['help'])
-def help_command(message):
-    user_id = message.chat.id
-    if has_full_access(user_id):
-        menu = "/online, /stats, /logs, /orders, /finance, /send, /people, /history, /pay, /test_payment, /payment_logs, /channels, /balance, /business, /report"
-    else:
-        menu = "/channels, /become_customer, /become_executor, /pay, /help"
-    bot.reply_to(message, menu)
+# --- КОМАНДА /payment_logs ---
+@bot.message_handler(commands=['payment_logs'])
+def payment_logs(message):
+    if message.chat.id != FOUNDER_ID:
+        bot.reply_to(message, "❌ Только основатель.")
+        return
+    c.execute("SELECT id, user_id, amount, method, status, qr_data, created_at FROM payments ORDER BY id DESC LIMIT 10")
+    payments = c.fetchall()
+    if not payments:
+        bot.reply_to(message, "📭 Нет записей.")
+        return
+    text = "💳 *Логи оплат:*\n\n"
+    for p in payments:
+        time_ast = (datetime.fromisoformat(p[6]) + timedelta(hours=5)).strftime('%Y-%m-%d %H:%M:%S')
+        text += f"🆔 {p[0]} | 👤 {p[1]} | 💰 {p[2]} | 📌 {p[3]} | 🔄 {p[4]}\n🕐 {time_ast}\n📱 QR: {p[5][:60]}...\n\n"
+    bot.reply_to(message, text[:4000], parse_mode="Markdown")
 
-@bot.message_handler(func=lambda message: True)
-def answer(message):
-    user_id = message.chat.id
-    update_status(user_id, "online")
-    log_action(user_id, "message", message.text[:100])
-    try:
-        response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": message.text}], temperature=0.7)
-        bot.reply_to(message, response.choices[0].message.content[:4000])
-    except:
-        bot.reply_to(message, "Ошибка. Попробуйте ещё раз.")
-
+# --- ФОНОВЫЕ ЗАДАЧИ ---
 def update_status_worker():
     while True:
         time.sleep(60)
@@ -331,7 +349,7 @@ def update_status_worker():
 
 threading.Thread(target=update_status_worker, daemon=True).start()
 
-print("✅ Зеркало (полный контроль оплаты) запущено!")
+print("✅ Зеркало (с кнопками, русские команды) запущено!")
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
