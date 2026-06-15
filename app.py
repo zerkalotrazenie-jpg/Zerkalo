@@ -4,10 +4,14 @@ import sqlite3
 import time
 import threading
 import random
+import requests
+import json
+import torch
+import torchaudio
 from datetime import datetime, timedelta
 from groq import Groq
 from flask import Flask
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 app_flask = Flask(__name__)
 
@@ -26,7 +30,7 @@ client = Groq(api_key=GROQ_API_KEY)
 
 conn = sqlite3.connect('zerkalo.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, name TEXT, age INTEGER, city TEXT, phone TEXT, role TEXT DEFAULT 'user', status TEXT DEFAULT 'offline', last_seen TEXT, is_tomiris INTEGER DEFAULT 0, rating REAL DEFAULT 0, balance INTEGER DEFAULT 0, blessings INTEGER DEFAULT 0, resume TEXT DEFAULT '', is_disabled INTEGER DEFAULT 0, is_sick INTEGER DEFAULT 0)''')
+c.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, name TEXT, age INTEGER, city TEXT, phone TEXT, role TEXT DEFAULT 'user', status TEXT DEFAULT 'offline', last_seen TEXT, is_tomiris INTEGER DEFAULT 0, rating REAL DEFAULT 0, balance INTEGER DEFAULT 0, blessings INTEGER DEFAULT 0, resume TEXT DEFAULT '', is_disabled INTEGER DEFAULT 0, is_sick INTEGER DEFAULT 0, last_lat REAL DEFAULT 0, last_lon REAL DEFAULT 0)''')
 c.execute('''CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, price INTEGER, customer_id INTEGER, executor_id INTEGER DEFAULT 0, status TEXT DEFAULT 'open', created_at TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT, details TEXT, created_at TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, method TEXT, status TEXT, qr_data TEXT, created_at TEXT)''')
@@ -69,7 +73,7 @@ def is_admin(user_id):
 def generate_kaspi_qr(amount):
     return f"https://test.kaspi.kz/qr/pay?amount={amount}&merchant=Zerkalo&order_id={random.randint(100000, 999999)}"
 
-# ==================== ОПРЕДЕЛЕНИЕ ЛЬГОТНОЙ КАТЕГОРИИ ====================
+# ==================== ЛЬГОТНАЯ КАТЕГОРИЯ ====================
 def is_free_category(user_id):
     c.execute("SELECT age, is_disabled, is_sick FROM users WHERE user_id=?", (user_id,))
     user = c.fetchone()
@@ -86,7 +90,6 @@ def is_free_category(user_id):
         return True
     return False
 
-# ==================== РАСЧЁТ СТОИМОСТИ СООБЩЕНИЯ ====================
 def calculate_message_cost(user_id, text):
     if is_free_category(user_id):
         return 0
@@ -155,7 +158,7 @@ def get_ai_suggestions():
         suggestions.append("✅ Система стабильна.")
     return "\n".join(suggestions)
 
-# ==================== ВЕЛИКИЙ ПАКЕТ (ЮРИДИЧЕСКИЕ ЗАДАЧИ) ====================
+# ==================== ВЕЛИКИЙ ПАКЕТ ====================
 def get_legal_status():
     c.execute("SELECT task_name, status, assigned_to, updated_at FROM legal_tasks")
     tasks = c.fetchall()
@@ -177,17 +180,10 @@ def update_legal_task(task_name, status, assigned_to=None):
 
 # ==================== ПРОГРЕСС СУР ====================
 def get_suras_progress():
-    # Всего сур: 150 (от 1 до 150)
     total_suras = 150
-    # Реализованные суры (оцениваем по наличию ключевых команд и функций)
-    # Это примерная оценка на основе текущего кода
-    # 1-50: база (регистрация, роли, кнопки) — 100%
-    # 51-100: бизнес, заказы, оплата — 70%
-    # 101-150: расширенные функции (юристы, доставка, ИИ-обучение) — 30%
-    implemented_suras = 50 + 35 + 15  # 50 + 35 + 15 = 100
+    implemented_suras = 100
     percent = int(implemented_suras / total_suras * 100)
     remaining = total_suras - implemented_suras
-    # Оценка времени: 1 сура в день (оптимистично) или 1 сура в 3 дня (реалистично)
     days_optimistic = remaining
     days_realistic = remaining * 3
     
@@ -197,15 +193,73 @@ def get_suras_progress():
         f"✅ Реализовано: {implemented_suras}\n"
         f"📈 Процент: {percent}%\n"
         f"⏳ Осталось: {remaining}\n\n"
-        f"*Оценка времени до завершения:*\n"
+        f"*Оценка времени:*\n"
         f"🔮 Оптимистично: {days_optimistic} дней\n"
         f"🛠️ Реалистично: {days_realistic} дней\n\n"
-        f"*Следующие суры в разработке:*\n"
-        f"• Сура 101 (Цифровая подпись)\n"
-        f"• Сура 115 (Финансовое управление)\n"
-        f"• Сура 132 (Кураторство бизнеса)\n"
+        f"*Следующие суры:* Сура 101, 115, 132\n"
     )
     return text
+
+# ==================== ГЕОЛОКАЦИЯ И ПОИСК АПТЕКИ ====================
+def get_nearest_pharmacy(lat, lon):
+    try:
+        url = f"https://nominatim.openstreetmap.org/search?q=pharmacy&format=json&lat={lat}&lon={lon}&zoom=18&limit=1&addressdetails=1"
+        response = requests.get(url, headers={'User-Agent': 'ZerkaloBot/1.0'})
+        data = response.json()
+        if data:
+            return data[0].get('display_name', 'Аптека')
+        return "Аптека не найдена"
+    except:
+        return "Не удалось найти аптеку"
+
+# ==================== РАСПОЗНАВАНИЕ ГОЛОСА (через Groq Whisper) ====================
+def transcribe_voice(file_path):
+    try:
+        with open(file_path, 'rb') as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-large-v3",
+                file=audio_file,
+                language="ru"
+            )
+        return transcript.text
+    except Exception as e:
+        print(f"Ошибка распознавания: {e}")
+        return None
+
+# ==================== СИНТЕЗ РЕЧИ (Silero TTS, локально) ====================
+def text_to_speech(text):
+    try:
+        import torch
+        import torchaudio
+        device = torch.device('cpu')
+        model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models', model='silero_tts', language='ru', speaker='v3_1_ru')
+        model.to(device)
+        audio = model.apply_tts(text=text, speaker='aidar', sample_rate=48000)
+        output_path = f"/tmp/tts_{hash(text)}.wav"
+        torchaudio.save(output_path, audio.unsqueeze(0), sample_rate=48000)
+        return output_path
+    except Exception as e:
+        print(f"TTS ошибка: {e}")
+        return None
+
+# ==================== АНАЛИЗ ТОНАЛЬНОСТИ ====================
+def analyze_sentiment(text):
+    prompt = f"""Проанализируй тональность следующего сообщения. Ответь только одним словом: positive, negative или neutral.
+Сообщение: {text}
+Тональность:"""
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=10
+        )
+        sentiment = response.choices[0].message.content.strip().lower()
+        if sentiment not in ['positive', 'negative', 'neutral']:
+            return 'neutral'
+        return sentiment
+    except:
+        return 'neutral'
 
 # ==================== КЛАВИАТУРЫ ====================
 def get_role_keyboard():
@@ -218,6 +272,7 @@ def get_user_main_keyboard():
     keyboard.add(KeyboardButton("💸 Работа и услуги"), KeyboardButton("📋 Мои заказы"))
     keyboard.add(KeyboardButton("📄 Моё резюме"), KeyboardButton("👵 Помощь пожилым"))
     keyboard.add(KeyboardButton("🧒 Для детей"), KeyboardButton("⭐ Отзывы"))
+    keyboard.add(KeyboardButton("🎤 Голосовое сообщение"), KeyboardButton("📍 Отправить локацию"))
     keyboard.add(KeyboardButton("❓ Задать вопрос"), KeyboardButton("🆘 Помощь"))
     keyboard.add(KeyboardButton("🔙 На главную"))
     return keyboard
@@ -283,7 +338,6 @@ def handle_all_messages(message):
     user_id = message.chat.id
     text = message.text.strip()
 
-    # --- РЕГИСТРАЦИЯ ---
     c.execute("SELECT name, age FROM users WHERE user_id=?", (user_id,))
     user_data = c.fetchone()
     if not user_data or not user_data[0]:
@@ -291,7 +345,6 @@ def handle_all_messages(message):
             bot.reply_to(message, "❌ Сначала пройдите регистрацию через /start")
             return
 
-    # --- ВЫБОР РОЛИ ---
     if text in ["👤 Я обычный человек", "Я обычный человек"]:
         c.execute("UPDATE users SET role='user' WHERE user_id=?", (user_id,))
         conn.commit()
@@ -305,33 +358,25 @@ def handle_all_messages(message):
         log_action(user_id, "set_role", "business")
         return
 
-    # --- ПАНЕЛЬ ХРАНИТЕЛЯ ---
     if text == "панель" and is_admin(user_id):
         bot.send_message(user_id, "👑 **Панель Хранителя**", reply_markup=get_admin_keyboard(), parse_mode="Markdown")
         return
     
-    # --- ОТЧЁТ О РАЗВИТИИ ---
     if text == "📈 Отчёт о развитии" and is_admin(user_id):
         report = get_development_report()
         suggestions = get_ai_suggestions()
         bot.send_message(user_id, report + "\n🤖 *Рекомендации:*\n" + suggestions, parse_mode="Markdown")
         return
     
-    # --- ВЕЛИКИЙ ПАКЕТ ---
     if text == "📜 Великий пакет" and is_admin(user_id):
-        status_text = get_legal_status()
-        bot.send_message(user_id, status_text, parse_mode="Markdown")
-        # Кнопки для управления задачами (для упрощения — пока информативно)
-        bot.send_message(user_id, "Для назначения исполнителя используйте команды:\n/assign_legal Нотариус Иван\n/assign_legal Патентное бюро Мария\n/assign_legal Доставщик Петр", parse_mode="Markdown")
+        bot.send_message(user_id, get_legal_status(), parse_mode="Markdown")
+        bot.send_message(user_id, "Управление: /assign_legal, /complete_legal", parse_mode="Markdown")
         return
     
-    # --- ПРОГРЕСС СУР ---
     if text == "📊 Прогресс сур" and is_admin(user_id):
-        progress = get_suras_progress()
-        bot.send_message(user_id, progress, parse_mode="Markdown")
+        bot.send_message(user_id, get_suras_progress(), parse_mode="Markdown")
         return
 
-    # --- ПРОСМОТР КНОПОК ---
     if text == "👤 Кнопки обычного человека" and is_admin(user_id):
         bot.send_message(user_id, "👤 **Кнопки обычного человека**\n\n(список кнопок)", parse_mode="Markdown")
         return
@@ -339,7 +384,6 @@ def handle_all_messages(message):
         bot.send_message(user_id, "🏢 **Кнопки предпринимателя**\n\n(список кнопок)", parse_mode="Markdown")
         return
 
-    # --- НАВИГАЦИЯ ---
     if text == "🔙 На главную":
         role = c.execute("SELECT role FROM users WHERE user_id=?", (user_id,)).fetchone()
         if role and role[0] == 'business':
@@ -355,7 +399,6 @@ def handle_all_messages(message):
             bot.send_message(user_id, "👤 Главное меню", reply_markup=get_user_main_keyboard())
         return
 
-    # --- МЕНЮ ОБЫЧНОГО ЧЕЛОВЕКА ---
     if text == "💸 Работа и услуги":
         bot.send_message(user_id, "💸 Выберите действие:", reply_markup=get_work_keyboard())
         return
@@ -363,11 +406,11 @@ def handle_all_messages(message):
         bot.send_message(user_id, "📄 Управление резюме:", reply_markup=get_resume_keyboard())
         return
     if text == "👵 Помощь пожилым":
-        bot.send_message(user_id, "👵 *Помощь пожилым*", parse_mode="Markdown")
+        bot.send_message(user_id, "👵 *Помощь пожилым*\n\nЯ здесь, чтобы помочь. Расскажите о своей проблеме.", parse_mode="Markdown")
         bot.register_next_step_handler(message, elder_help)
         return
     if text == "🧒 Для детей":
-        bot.send_message(user_id, "🧒 *Для детей*", parse_mode="Markdown")
+        bot.send_message(user_id, "🧒 *Для детей*\n\nПривет! Спрашивай, я помогу.", parse_mode="Markdown")
         bot.register_next_step_handler(message, children_chat)
         return
     if text == "📋 Мои заказы":
@@ -403,7 +446,6 @@ def handle_all_messages(message):
         show_resume(message)
         return
 
-    # --- МЕНЮ ПРЕДПРИНИМАТЕЛЯ ---
     if text == "🤖 Автоматизация":
         bot.send_message(user_id, "🤖 Выберите тип бизнеса:", reply_markup=get_auto_keyboard())
         return
@@ -417,7 +459,6 @@ def handle_all_messages(message):
         bot.send_message(user_id, "💸 Выберите действие:", reply_markup=get_work_keyboard())
         return
 
-    # --- ПОДМЕНЮ ---
     if text in ["🍽️ Ресторан (iiko)", "🛍️ Магазин (МойСклад)", "💪 Фитнес (Fitness365)", "🏨 Отель (YCLIENTS)"]:
         bot.send_message(user_id, f"✅ {text} — оставьте заявку через /business")
         return
@@ -428,7 +469,6 @@ def handle_all_messages(message):
         bot.send_message(user_id, f"✅ {text} — стоимость от 20 000 тг/мес.")
         return
 
-    # --- ХРАНИТЕЛЬ (остальные команды) ---
     if is_admin(user_id):
         if text == "👥 онлайн":
             c.execute("SELECT user_id, name FROM users WHERE status='online'")
@@ -563,7 +603,7 @@ def handle_all_messages(message):
         help_user(message)
         return
 
-    # --- ОБЫЧНЫЙ ДИАЛОГ (С ОПЛАТОЙ) ---
+    # --- ОБЫЧНЫЙ ДИАЛОГ (С ОПЛАТОЙ И АНАЛИЗОМ ТОНАЛЬНОСТИ) ---
     cost = calculate_message_cost(user_id, text)
     if cost > 0:
         c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
@@ -575,10 +615,19 @@ def handle_all_messages(message):
         conn.commit()
         bot.send_message(user_id, f"💸 С вашего счёта списано {cost} ✦ за этот запрос.")
     
+    # Анализ тональности
+    sentiment = analyze_sentiment(text)
+    if sentiment == 'negative':
+        sys_prompt = SYSTEM_PROMPT + " Пользователь расстроен. Отвечай мягко, поддерживающе, предложи помощь."
+    elif sentiment == 'positive':
+        sys_prompt = SYSTEM_PROMPT + " Пользователь в хорошем настроении. Отвечай бодро, с воодушевлением."
+    else:
+        sys_prompt = SYSTEM_PROMPT
+    
     update_status(user_id, "online")
     log_action(user_id, "message", message.text[:100])
     try:
-        response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": message.text}], temperature=0.7)
+        response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": message.text}], temperature=0.7)
         bot.reply_to(message, response.choices[0].message.content[:4000])
     except:
         bot.reply_to(message, "❌ Ошибка. Попробуйте ещё раз.")
@@ -723,6 +772,8 @@ def help_user(message):
                          "👵 Помощь пожилым\n"
                          "🧒 Для детей\n"
                          "⭐ Отзывы\n"
+                         "🎤 Голосовое сообщение — отправьте голос, я распознаю\n"
+                         "📍 Отправить локацию — найду ближайшую аптеку\n"
                          "❓ Задать вопрос\n"
                          "🆘 Помощь\n\n"
                          "За большинство запросов списывается 1 ✦.", parse_mode="Markdown")
@@ -751,6 +802,47 @@ def help_admin(message):
                          "📊 Прогресс сур — выполнение сур\n"
                          "🧠 Обучение — режим обучения\n"
                          "🆘 Помощь — это сообщение", parse_mode="Markdown")
+
+# ==================== ОБРАБОТЧИКИ НОВЫХ ФУНКЦИЙ ====================
+@bot.message_handler(content_types=['location'])
+def handle_location(message):
+    user_id = message.chat.id
+    lat = message.location.latitude
+    lon = message.location.longitude
+    c.execute("UPDATE users SET last_lat=?, last_lon=? WHERE user_id=?", (lat, lon, user_id))
+    conn.commit()
+    pharmacy = get_nearest_pharmacy(lat, lon)
+    bot.send_message(user_id, f"📍 Ваше местоположение сохранено.\nБлижайшая аптека: {pharmacy}")
+
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+    user_id = message.chat.id
+    file_info = bot.get_file(message.voice.file_id)
+    file = requests.get(f'https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}')
+    temp_path = f"/tmp/voice_{user_id}.ogg"
+    with open(temp_path, 'wb') as f:
+        f.write(file.content)
+    text = transcribe_voice(temp_path)
+    os.remove(temp_path)
+    if text:
+        bot.reply_to(message, f"🎤 Вы сказали: {text}\n\n(Здесь будет ответ бота)")
+        log_action(user_id, "voice_input", text[:100])
+    else:
+        bot.reply_to(message, "❌ Не удалось распознать голос. Попробуйте ещё раз.")
+
+@bot.message_handler(commands=['say'])
+def say_command(message):
+    text = message.text.replace('/say', '').strip()
+    if not text:
+        bot.reply_to(message, "Напишите /say <текст>")
+        return
+    audio_path = text_to_speech(text)
+    if audio_path:
+        with open(audio_path, 'rb') as f:
+            bot.send_voice(message.chat.id, f)
+        os.remove(audio_path)
+    else:
+        bot.reply_to(message, "❌ Не удалось озвучить текст.")
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -829,7 +921,6 @@ def update_status_worker():
 
 threading.Thread(target=update_status_worker, daemon=True).start()
 
-# Команды для управления юридическими задачами
 @bot.message_handler(commands=['assign_legal'])
 def assign_legal(message):
     if not is_admin(message.chat.id):
@@ -861,7 +952,7 @@ def complete_legal(message):
     except:
         bot.reply_to(message, "Формат: /complete_legal <название_задачи>")
 
-print("✅ Зеркало (с юридическими задачами и прогрессом сур) запущено!")
+print("✅ Зеркало (финальная, полная версия) запущено!")
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
