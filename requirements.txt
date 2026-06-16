@@ -1,3 +1,4 @@
-pyTelegramBotAPI
+pytelegrambotapi
 groq
-Flask
+flask
+requests
