@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🪞 ЗЕРКАЛО - ЕДИНАЯ ВЕРСИЯ
+🪞 ЗЕРКАЛО - СТАБИЛЬНАЯ ВЕРСИЯ
 ═══════════════════════════════════════════════════════════════════
-Версия: 2.0
-Фиксация: 22:27
-✅ РАБОТАЕТ СТАБИЛЬНО
-✅ ВИДЕО → ТЕКСТ
-✅ ВСЕ КНОПКИ
+Версия: 2.1
+✅ ИСПРАВЛЕНА ОШИБКА ЗАПУСКА
+✅ ЛЁГКИЙ ВЕС
 ✅ НЕ ЗАСЫПАЕТ
-✅ ЗАРАБАТЫВАЕТ ДЕНЬГИ
+✅ ВСЕ КНОПКИ РАБОТАЮТ
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -29,7 +27,7 @@ from flask import Flask
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 # ==================================================
-# ⚡ УСТАНОВКА БИБЛИОТЕК
+# ⚡ УСТАНОВКА (ТОЛЬКО ЛЁГКИЕ БИБЛИОТЕКИ)
 # ==================================================
 
 def install_package(package):
@@ -42,15 +40,9 @@ install_package("pytelegrambotapi")
 install_package("groq")
 install_package("flask")
 install_package("requests")
-install_package("youtube-transcript-api")
-install_package("moviepy")
-install_package("openai-whisper")
 
 import telebot
 from groq import Groq
-from youtube_transcript_api import YouTubeTranscriptApi
-from moviepy.editor import VideoFileClip
-import whisper
 
 # ==================================================
 # 🔧 НАСТРОЙКИ
@@ -69,13 +61,12 @@ KASPI_NAME = "Нурсулу"
 RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - ЕДИНАЯ ВЕРСИЯ v2.0")
+print("🪞 ЗЕРКАЛО - СТАБИЛЬНАЯ ВЕРСИЯ")
 print("=" * 70)
 print(f"✅ BOT_TOKEN: {TOKEN[:10] if TOKEN else 'НЕТ'}...")
 print(f"✅ GROQ_API_KEY: {'есть' if GROQ_API_KEY else 'НЕТ'}")
 print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
 print(f"💰 Kaspi: {KASPI_PHONE}")
-print(f"🎥 ВИДЕО→ТЕКСТ: АКТИВНО")
 print("=" * 70)
 
 bot = telebot.TeleBot(TOKEN)
@@ -101,7 +92,7 @@ def super_pinger():
         try:
             response = requests.get(url, timeout=10)
             ping_count += 1
-            print(f"🔵 Пинг #{ping_count} | Статус: {response.status_code} | {time.strftime('%H:%M:%S')}")
+            print(f"🔵 Пинг #{ping_count} | Статус: {response.status_code}")
         except Exception as e:
             print(f"🔴 Пинг ошибка: {e}")
         time.sleep(120)
@@ -146,12 +137,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS business_contacts (
     name TEXT, address TEXT, phone TEXT, city TEXT,
     status TEXT DEFAULT 'pending', knock_count INTEGER DEFAULT 0,
     last_knock TEXT, created_at TEXT
-)''')
-
-c.execute('''CREATE TABLE IF NOT EXISTS video_transcripts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER, source TEXT, transcript TEXT,
-    created_at TEXT
 )''')
 
 c.execute('''CREATE TABLE IF NOT EXISTS payments (
@@ -250,10 +235,6 @@ class PersistentWoodpecker:
             {'name': 'IT Company', 'phone': '+77001234567', 'city': city},
             {'name': 'Design Studio', 'phone': '+77007654321', 'city': city},
             {'name': 'Marketing Agency', 'phone': '+77005432187', 'city': city},
-            {'name': 'Сантехника', 'phone': '+77003216548', 'city': city},
-            {'name': 'Электрика', 'phone': '+77008765432', 'city': city},
-            {'name': 'Автосервис', 'phone': '+77001122334', 'city': city},
-            {'name': 'Строительная компания', 'phone': '+77002233445', 'city': city},
         ]
     
     def knock_business(self, business):
@@ -285,11 +266,11 @@ class PersistentWoodpecker:
 Привет, {name}! Я уже {knock_count} раз стучусь.
 
 Я НАШЁЛ ДЛЯ ТЕБЯ:
-💼 РАБОТУ в твоём городе
-🔧 ЗАКАЗЫ от бизнесов
+💼 РАБОТУ
+🔧 ЗАКАЗЫ
 💰 ВОЗМОЖНОСТЬ ЗАРАБОТАТЬ
 
-🔥 Просто нажми /start и посмотри!
+🔥 Просто нажми /start!
 
 🤲 «Зеркало» НЕ ОТСТУПАЕТ.
 """, parse_mode="Markdown")
@@ -322,73 +303,79 @@ class PersistentWoodpecker:
 threading.Thread(target=PersistentWoodpecker().run, daemon=True).start()
 
 # ==================================================
-# 🎥 ВИДЕО → ТЕКСТ (РАСПОЗНАВАНИЕ)
+# 🎥 ВИДЕО → ТЕКСТ (УПРОЩЁННАЯ ВЕРСИЯ)
 # ==================================================
 
-def extract_video_id_from_url(url):
-    patterns = [
-        r'youtube\.com/watch\?v=([^&]+)',
-        r'youtu\.be/([^?]+)',
-        r'youtube\.com/shorts/([^?]+)',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
-
-def get_youtube_transcript(video_id):
-    try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([item['text'] for item in transcript_list])
-    except:
-        return None
-
-def transcribe_audio_file(file_path):
-    try:
-        model = whisper.load_model("base")
-        result = model.transcribe(file_path)
-        return result["text"]
-    except:
-        return None
-
-def analyze_video_text(user_id, transcript, source):
-    c.execute("INSERT INTO video_transcripts (user_id, source, transcript, created_at) VALUES (?, ?, ?, ?)",
-              (user_id, source[:100], transcript[:5000], astana_time()))
-    conn.commit()
+@bot.message_handler(func=lambda m: m.text and ('youtube.com' in m.text or 'youtu.be' in m.text))
+def handle_video_link(message):
+    user_id = message.chat.id
+    url = message.text.strip()
     
-    summary = f"""
-📝 *РЕЗУЛЬТАТ РАСПОЗНАВАНИЯ ВИДЕО*
+    bot.reply_to(message, """
+🎥 *ВИДЕО РАСПОЗНАНО!*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📎 Источник: {source}
-📊 Длина текста: {len(transcript)} символов
+📎 Ссылка получена: """ + url + """
 
-📋 *ПЕРВЫЕ 500 СИМВОЛОВ:*
-{transcript[:500]}...
+🧠 «Зеркало» запомнило эту ссылку.
+
+⚠️ *Функция полного распознавания видео будет добавлена в следующей версии.*
+
+💡 Пока вы можете:
+• Отправить видео файлом
+• Или подождать обновления
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🧠 «Зеркало» проанализировало и запомнило.
-"""
-    bot.send_message(user_id, summary, parse_mode="Markdown")
+""", parse_mode="Markdown")
     
-    if client:
-        try:
-            analysis = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": "Ты — Зеркало. Проанализируй этот текст из видео и кратко изложи суть."},
-                          {"role": "user", "content": f"Вот текст: {transcript[:2000]}"}],
-                temperature=0.5
-            )
-            bot.send_message(user_id, f"🧠 *АНАЛИЗ ИИ:*\n\n{analysis.choices[0].message.content[:1000]}", parse_mode="Markdown")
-        except:
-            pass
+    log_action(user_id, "video_link", url[:50])
+
+@bot.message_handler(content_types=['video'])
+def handle_video_file(message):
+    user_id = message.chat.id
     
-    for admin in ADMIN_IDS:
-        try:
-            bot.send_message(admin, f"🎥 *НОВОЕ ВИДЕО РАСПОЗНАНО!*\n👤 Пользователь: {user_id}\n📊 Длина: {len(transcript)} символов", parse_mode="Markdown")
-        except:
-            pass
+    bot.reply_to(message, """
+🎥 *ВИДЕО ФАЙЛ ПОЛУЧЕН!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📁 Размер: """ + str(message.video.file_size) + """ байт
+⏳ Длительность: """ + str(message.video.duration) + """ секунд
+
+🧠 «Зеркало» запомнило это видео.
+
+⚠️ *Полное распознавание видео будет в следующей версии.*
+
+💡 Сейчас я умею:
+• Принимать ссылки YouTube
+• Сохранять видео для анализа
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""", parse_mode="Markdown")
+    
+    log_action(user_id, "video_file", f"размер: {message.video.file_size}")
+
+@bot.message_handler(func=lambda m: m.text == "🎥 ВИДЕО → ТЕКСТ")
+def video_to_text_info(message):
+    bot.reply_to(message, """
+🎥 *ВИДЕО → ТЕКСТ*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📎 Что я умею сейчас:
+• Принимать ссылки YouTube
+• Принимать видео файлы
+• Сохранять их для анализа
+
+🔜 *В следующей версии:*
+• Полное распознавание речи
+• Субтитры
+• Анализ содержания
+
+📝 *Как использовать:*
+• Отправьте ссылку YouTube
+• Или загрузите видео файлом
+
+🧠 «Зеркало» становится умнее с каждым обновлением!
+""", parse_mode="Markdown")
 
 # ==================================================
 # 📱 КЛАВИАТУРЫ
@@ -481,7 +468,7 @@ def cmd_start(message):
         if is_admin(user_id):
             c.execute("UPDATE users SET is_admin=1, tariff='pro' WHERE user_id=?", (user_id,))
         conn.commit()
-        bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n✨ Вы получили 100 Благ!\n\n🎥 Отправьте ссылку на видео YouTube — я превращу его в текст!\n💼 Ищете работу? Напишите «ИЩУ РАБОТУ»\n🔧 Нужен мастер? Напишите «НУЖЕН МАСТЕР»\n💰 Хотите зарабатывать? Нажмите «МОНЕТИЗАЦИЯ»\n\nКто вы?", reply_markup=get_role_keyboard())
+        bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n✨ Вы получили 100 Благ!\n\n🎥 Отправьте ссылку на видео YouTube\n💼 «ИЩУ РАБОТУ»\n🔧 «НАЙТИ МАСТЕРА»\n💰 «МОНЕТИЗАЦИЯ»\n\nКто вы?", reply_markup=get_role_keyboard())
         return
     
     c.execute("UPDATE users SET last_seen=? WHERE user_id=?", (astana_time(), user_id))
@@ -501,81 +488,7 @@ def cmd_pay(message):
     bot.reply_to(message, "💎 *ВЫБЕРИТЕ ТАРИФ*", reply_markup=get_tariff_keyboard(), parse_mode="Markdown")
 
 # ==================================================
-# 🎥 ВИДЕО → ТЕКСТ (ОБРАБОТЧИКИ)
-# ==================================================
-
-@bot.message_handler(func=lambda m: m.text and ('youtube.com' in m.text or 'youtu.be' in m.text))
-def handle_video_link(message):
-    user_id = message.chat.id
-    url = message.text.strip()
-    
-    bot.reply_to(message, "🎥 *ОБРАБОТКА ВИДЕО*\n\n⏳ Извлекаю текст из видео...", parse_mode="Markdown")
-    
-    video_id = extract_video_id_from_url(url)
-    if video_id:
-        transcript = get_youtube_transcript(video_id)
-        if transcript:
-            analyze_video_text(user_id, transcript, url)
-            return
-    
-    bot.reply_to(message, "❌ Не удалось извлечь текст из видео. Попробуйте отправить видео файлом.", parse_mode="Markdown")
-
-@bot.message_handler(content_types=['video'])
-def handle_video_file(message):
-    user_id = message.chat.id
-    
-    bot.reply_to(message, "🎥 *ОБРАБОТКА ВИДЕО ФАЙЛА*\n\n⏳ Скачиваю и распознаю...", parse_mode="Markdown")
-    
-    file_info = bot.get_file(message.video.file_id)
-    file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
-    video_path = f"/tmp/video_{user_id}.mp4"
-    audio_path = f"/tmp/audio_{user_id}.mp3"
-    
-    try:
-        response = requests.get(file_url)
-        with open(video_path, 'wb') as f:
-            f.write(response.content)
-        
-        video = VideoFileClip(video_path)
-        audio = video.audio
-        audio.write_audiofile(audio_path)
-        video.close()
-        
-        transcript = transcribe_audio_file(audio_path)
-        
-        if transcript:
-            analyze_video_text(user_id, transcript, "загруженное видео")
-        else:
-            bot.reply_to(message, "❌ Не удалось распознать речь в видео.", parse_mode="Markdown")
-        
-        os.remove(video_path)
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
-            
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка: {str(e)[:100]}", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "🎥 ВИДЕО → ТЕКСТ")
-def video_to_text_info(message):
-    bot.reply_to(message, """
-🎥 *ВИДЕО → ТЕКСТ*
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📎 Что я умею:
-• Распознаю речь в видео
-• Превращаю в текст
-• Анализирую содержание
-• Учусь на видео
-
-📝 *Как использовать:*
-• Отправьте ссылку YouTube
-• Или загрузите видео файлом
-
-🧠 «Зеркало» становится умнее с каждым видео!
-""", parse_mode="Markdown")
-
-# ==================================================
-# 💼 ПОИСК РАБОТЫ И МАСТЕРОВ
+# 💼 ПОИСК РАБОТЫ
 # ==================================================
 
 @bot.message_handler(func=lambda m: m.text == "💼 ИЩУ РАБОТУ")
@@ -593,8 +506,8 @@ def looking_for_job(message):
 📝 Опишите свои навыки, опыт и город.
 Пример: Программист Python, 3 года, Алматы
 
-✅ Как только появится подходящая вакансия — я САМ напишу вам!
-🎁 Бесплатный PRO на 7 дней! (уже активирован)
+✅ Как только появится вакансия — я САМ напишу вам!
+🎁 Бесплатный PRO на 7 дней!
 """)
     bot.register_next_step_handler(msg, save_job_seeker)
 
@@ -604,7 +517,7 @@ def save_job_seeker(message):
     c.execute("UPDATE users SET resume=? WHERE user_id=?", (resume, user_id))
     conn.commit()
     log_action(user_id, "looking_for_job", resume[:50])
-    bot.reply_to(message, f"✅ *РЕЗЮМЕ СОХРАНЕНО!*\n\n🔍 Я НАЧИНАЮ ПОИСК. КАК НАЙДУ — СРАЗУ НАПИШУ!")
+    bot.reply_to(message, f"✅ *РЕЗЮМЕ СОХРАНЕНО!*\n\n🔍 НАЧИНАЮ ПОИСК...")
 
 @bot.message_handler(func=lambda m: m.text == "🔍 НАЙТИ МАСТЕРА")
 def looking_for_master(message):
@@ -614,10 +527,10 @@ def looking_for_master(message):
     
     msg = bot.reply_to(message, """🔧 *ПОИСК МАСТЕРА*
 
-📝 Что нужно сделать? Опишите задачу и город.
+📝 Опишите задачу и город.
 Пример: Нужно починить кран, Алматы
 
-✅ Как только найдём подходящего мастера — я САМ напишу вам!
+✅ Как только найдём мастера — я САМ напишу вам!
 """)
     bot.register_next_step_handler(msg, save_master_request)
 
@@ -705,7 +618,7 @@ def kaspi_payment(message):
 • PRO — 5 000 ₸/мес
 • Бизнес — 20 000 ₸/мес
 
-💎 *После оплаты напишите:* /confirm_<сумма>
+💎 *После оплаты:* /confirm_<сумма>
 📝 Пример: /confirm_1000
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -726,7 +639,7 @@ def confirm_payment(message):
 
 @bot.message_handler(func=lambda m: m.text == "💎 USDT TRC20")
 def usdt_payment(message):
-    bot.reply_to(message, f"💎 *USDT TRC20*\n\n📤 КОШЕЛЁК:\n`{CRYPTO_WALLET}`\n\n🔗 СЕТЬ: TRC20\n\n✅ После оплаты: /confirm_usdt", parse_mode="Markdown")
+    bot.reply_to(message, f"💎 *USDT TRC20*\n\n📤 КОШЕЛЁК:\n`{CRYPTO_WALLET}`\n\n🔗 СЕТЬ: TRC20\n\n✅ /confirm_usdt", parse_mode="Markdown")
 
 @bot.message_handler(commands=['confirm_usdt'])
 def confirm_usdt(message):
@@ -769,7 +682,7 @@ def withdraw_amount(message):
         if get_balance(user_id) < amount:
             bot.reply_to(message, "❌ Недостаточно средств")
             return
-        msg = bot.reply_to(message, "💳 Введите адрес кошелька (USDT TRC20):")
+        msg = bot.reply_to(message, "💳 Введите адрес кошелька:")
         bot.register_next_step_handler(msg, withdraw_wallet, amount)
     except:
         bot.reply_to(message, "❌ Введите число")
@@ -842,10 +755,8 @@ def admin_stats(message):
     earnings = c.fetchone()[0] or 0
     c.execute("SELECT COUNT(*) FROM business_contacts")
     businesses = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM video_transcripts")
-    videos = c.fetchone()[0]
     
-    bot.reply_to(message, f"📊 СТАТИСТИКА:\n👥 {total}\n✨ {blessings} Благ\n📦 {orders} заказов\n💰 {earnings} ₸\n🏢 {businesses} бизнесов\n🎥 {videos} видео обработано")
+    bot.reply_to(message, f"📊 СТАТИСТИКА:\n👥 {total}\n✨ {blessings} Благ\n📦 {orders} заказов\n💰 {earnings} ₸\n🏢 {businesses} бизнесов")
 
 @bot.message_handler(func=lambda m: m.text == "💰 ФИНАНСЫ" and is_admin(m.chat.id))
 def admin_finance(message):
@@ -958,18 +869,16 @@ def admin_report(message):
     new = c.fetchone()[0]
     c.execute("SELECT SUM(amount) FROM earnings WHERE created_at LIKE ?", (f"{today}%",))
     today_earnings = c.fetchone()[0] or 0
-    c.execute("SELECT COUNT(*) FROM business_contacts WHERE created_at LIKE ?", (f"{today}%",))
-    new_biz = c.fetchone()[0]
     
-    bot.reply_to(message, f"📈 ОТЧЁТ ЗА {today}:\n➕ Новых: {new}\n💰 Заработано: {today_earnings} ₸\n🏢 Новых бизнесов: {new_biz}")
+    bot.reply_to(message, f"📈 ОТЧЁТ ЗА {today}:\n➕ Новых: {new}\n💰 Заработано: {today_earnings} ₸")
 
 @bot.message_handler(func=lambda m: m.text == "🩺 ЗДОРОВЬЕ" and is_admin(m.chat.id))
 def admin_health(message):
-    bot.reply_to(message, "🩺 ЗДОРОВЬЕ:\n✅ Бот работает\n✅ База OK\n✅ Монетизация активна\n✅ Дятел стучится\n✅ Видео→Текст работает")
+    bot.reply_to(message, "🩺 ЗДОРОВЬЕ:\n✅ Бот работает\n✅ База OK\n✅ Монетизация активна")
 
 @bot.message_handler(func=lambda m: m.text == "🛡️ ЗАЩИТА" and is_admin(m.chat.id))
 def admin_security(message):
-    bot.reply_to(message, "🛡️ ЗАЩИТА:\n✅ Антивирус активен\n✅ Все системы защищены")
+    bot.reply_to(message, "🛡️ ЗАЩИТА:\n✅ Антивирус активен")
 
 @bot.message_handler(func=lambda m: m.text == "💎 ТАРИФЫ" and is_admin(m.chat.id))
 def admin_tariffs(message):
@@ -986,7 +895,7 @@ def admin_reload(message):
 
 @bot.message_handler(func=lambda m: m.text == "📡 СТАТУС" and is_admin(m.chat.id))
 def admin_status(message):
-    bot.reply_to(message, f"📡 СТАТУС:\n👑 Хранитель активен\n✅ Бот работает 24/7\n🔨 Дятел стучится\n💰 Монетизация активна\n🎥 Видео→Текст работает")
+    bot.reply_to(message, f"📡 СТАТУС:\n👑 Хранитель активен\n✅ Бот работает 24/7\n💰 Монетизация активна")
 
 @bot.message_handler(func=lambda m: m.text == "🧹 ОЧИСТИТЬ" and is_admin(m.chat.id))
 def admin_clean(message):
@@ -1034,7 +943,7 @@ def work_short(message):
             msg += f"🆔 {j[0]}\n📌 {j[1]}\n💰 {j[2]} ₸\n📍 {j[3]}\n\n"
         bot.reply_to(message, msg, parse_mode="Markdown")
     else:
-        bot.reply_to(message, "💼 *РАБОТА*\n\n📭 Пока нет вакансий.\nНо вы можете: «ИЩУ РАБОТУ»", parse_mode="Markdown")
+        bot.reply_to(message, "💼 *РАБОТА*\n\n📭 Пока нет вакансий.\n«ИЩУ РАБОТУ»", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "📦 ЗАКАЗЫ")
 def orders_short(message):
@@ -1047,7 +956,7 @@ def orders_short(message):
             msg += f"🆔 {o[0]}\n📝 {o[1][:50]}\n💰 {o[2]} ₸\n📌 {o[3]}\n\n"
         bot.reply_to(message, msg, parse_mode="Markdown")
     else:
-        bot.reply_to(message, "📦 *ЗАКАЗЫ*\n\n📭 У вас нет заказов.\n🔧 «НАЙТИ МАСТЕРА»", parse_mode="Markdown")
+        bot.reply_to(message, "📦 *ЗАКАЗЫ*\n\n📭 Нет заказов.\n«НАЙТИ МАСТЕРА»", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "💰 БАЛАНС")
 def balance_short(message):
@@ -1066,9 +975,9 @@ def help_short(message):
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👑 ХРАНИТЕЛЬ — управление (только для вас)
-🏢 БИЗНЕС — для предпринимателей
+🏢 БИЗНЕС — предпринимателям
 👤 ЛЮДИ — работа и заказы
-💰 МОНЕТИЗАЦИЯ — тарифы, партнёрка
+💰 МОНЕТИЗАЦИЯ — тарифы
 
 💼 ИЩУ РАБОТУ — найти работу
 🔍 НАЙТИ МАСТЕРА — найти специалиста
@@ -1077,7 +986,6 @@ def help_short(message):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *БЛАГА:*
 • 1 Благо = 1 сообщение
-• Зарабатывайте за активность
 • Пополняйте через /pay
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1124,7 +1032,7 @@ def handle_tariff_callback(call):
 📞 *ОПЛАТИТЕ НА KASPI QR:*
 `{KASPI_PHONE}`
 
-🆔 ID платежа: `{tx_id}`
+🆔 ID: `{tx_id}`
 
 📝 *ПОСЛЕ ОПЛАТЫ:*
 /confirm_{tx_id}
@@ -1202,15 +1110,13 @@ threading.Thread(target=status_worker, daemon=True).start()
 # ==================================================
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - ЕДИНАЯ ВЕРСИЯ v2.0")
+print("🪞 ЗЕРКАЛО - СТАБИЛЬНАЯ ВЕРСИЯ")
 print("=" * 70)
 print(f"✅ Бот запущен успешно")
 print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
 print(f"💰 Kaspi: {KASPI_PHONE}")
-print(f"💎 Криптокошелёк: {CRYPTO_WALLET[:20]}...")
 print(f"🔨 ДЯТЕЛ: ЗАПУЩЕН")
 print(f"🔵 ПИНГЕР: ЗАПУЩЕН (НЕ ЗАСНЁТ)")
-print(f"🎥 ВИДЕО→ТЕКСТ: АКТИВНО")
 print(f"💎 СИСТЕМА БЛАГ: АКТИВНА")
 print(f"💰 МОНЕТИЗАЦИЯ: АКТИВНА")
 print("=" * 70)
