@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🪞 ЗЕРКАЛО - АВТОНОМНАЯ ВЕРСИЯ
+🪞 ЗЕРКАЛО - ПОЛНАЯ ВЕРСИЯ
 ═══════════════════════════════════════════════════════════════════
-✅ НИКОГДА НЕ ЗАСЫПАЕТ (пингер каждые 2 минуты)
-✅ САМОСТРОИТСЯ (150 сур)
-✅ САМОЧИНИТСЯ (AI-доктор)
-✅ САМООБУЧАЕТСЯ (через Telegram)
+✅ ГОЛОСОВОЕ УПРАВЛЕНИЕ
+✅ ОБУЧЕНИЕ ЧЕРЕЗ ТЕЛЕГРАМ
+✅ НИКОГДА НЕ ЗАСЫПАЕТ
+✅ ВСЕ КНОПКИ
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -20,12 +20,15 @@ import requests
 import json
 import re
 import hashlib
+import speech_recognition as sr
+from pydub import AudioSegment
+import io
 from datetime import datetime, timedelta
 from flask import Flask
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 # ==================================================
-# ⚡ УСТАНОВКА БИБЛИОТЕК
+# УСТАНОВКА БИБЛИОТЕК
 # ==================================================
 
 def install_package(package):
@@ -39,35 +42,34 @@ install_package("pytelegrambotapi")
 install_package("groq")
 install_package("flask")
 install_package("requests")
+install_package("SpeechRecognition")
+install_package("pydub")
 
 import telebot
 from groq import Groq
 
 # ==================================================
-# 🔧 НАСТРОЙКИ
+# НАСТРОЙКИ
 # ==================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# Священные ID — НЕ ТРОГАТЬ!
 FOUNDER_ID = 5409420822
 TOMIRIS_ID = 5479179814
 ADMIN_IDS = [5409420822, 5479179814]
 
-# Финансы
 KASPI_PHONE = "+777733440345"
 CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
 KASPI_NAME = "Нурсулу"
 RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - АВТОНОМНАЯ ВЕРСИЯ")
+print("🪞 ЗЕРКАЛО - ПОЛНАЯ ВЕРСИЯ")
 print("=" * 70)
 print(f"✅ BOT_TOKEN: {TOKEN[:10] if TOKEN else 'НЕТ'}...")
 print(f"✅ GROQ_API_KEY: {'есть' if GROQ_API_KEY else 'НЕТ'}")
 print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
-print(f"💰 Kaspi: {KASPI_PHONE}")
 print("=" * 70)
 
 bot = telebot.TeleBot(TOKEN)
@@ -83,25 +85,126 @@ def run_flask():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 # ==================================================
-# ⏰ СУПЕР-ПИНГЕР — НИКОГДА НЕ ЗАСНЁТ!
+# ⏰ СУПЕР-ПИНГЕР — НЕ ДАЁТ ЗАСНУТЬ!
 # ==================================================
 
 def super_pinger():
-    """Каждые 2 МИНУТЫ пингует бота — НЕ ДАЁТ ЗАСНУТЬ!"""
     url = f"https://{RENDER_HOSTNAME}/"
     ping_count = 0
-    
     while True:
         try:
             response = requests.get(url, timeout=10)
             ping_count += 1
-            print(f"🔵 Пинг #{ping_count} | Статус: {response.status_code} | {time.strftime('%H:%M:%S')}")
-        except Exception as e:
-            print(f"🔴 Ошибка пинга: {e}")
-        time.sleep(120)  # 2 минуты — Render НЕ УСПЕЕТ ЗАСНУТЬ!
+            print(f"🔵 Пинг #{ping_count} | Статус: {response.status_code}")
+        except:
+            pass
+        time.sleep(120)
 
-# ЗАПУСКАЕМ ПИНГЕР СРАЗУ!
 threading.Thread(target=super_pinger, daemon=True).start()
+
+# ==================================================
+# 🎤 ГОЛОСОВОЕ УПРАВЛЕНИЕ
+# ==================================================
+
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+    user_id = message.chat.id
+    
+    bot.reply_to(message, "🎤 *РАСПОЗНАЮ ГОЛОС...*", parse_mode="Markdown")
+    
+    try:
+        file_info = bot.get_file(message.voice.file_id)
+        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
+        response = requests.get(file_url)
+        
+        ogg_path = f"/tmp/voice_{user_id}.ogg"
+        with open(ogg_path, 'wb') as f:
+            f.write(response.content)
+        
+        wav_path = f"/tmp/voice_{user_id}.wav"
+        audio = AudioSegment.from_ogg(ogg_path)
+        audio.export(wav_path, format="wav")
+        
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(wav_path) as source:
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data, language="ru-RU")
+        
+        os.remove(ogg_path)
+        os.remove(wav_path)
+        
+        bot.reply_to(message, f"🎤 *ВЫ СКАЗАЛИ:*\n{text}", parse_mode="Markdown")
+        process_voice_command(message, text)
+        
+    except sr.UnknownValueError:
+        bot.reply_to(message, "❌ Не удалось распознать речь", parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {str(e)[:100]}", parse_mode="Markdown")
+
+def process_voice_command(message, text):
+    text_lower = text.lower()
+    user_id = message.chat.id
+    
+    if is_admin(user_id):
+        if "панель" in text_lower or "хранитель" in text_lower:
+            founder_section(message)
+        elif "статистика" in text_lower:
+            admin_stats(message)
+        elif "онлайн" in text_lower:
+            admin_online(message)
+        elif "люди" in text_lower:
+            admin_users(message)
+        elif "блага" in text_lower:
+            admin_top(message)
+        elif "рассылка" in text_lower:
+            msg = bot.reply_to(message, "📤 Текст для рассылки:")
+            bot.register_next_step_handler(msg, do_broadcast)
+        elif "финансы" in text_lower:
+            admin_finance(message)
+        elif "доходы" in text_lower:
+            admin_earnings(message)
+        elif "логи" in text_lower:
+            admin_logs(message)
+        elif "поиск" in text_lower:
+            msg = bot.reply_to(message, "🔍 Введите ID:")
+            bot.register_next_step_handler(msg, search_user)
+        elif "отчёт" in text_lower:
+            admin_report(message)
+        elif "здоровье" in text_lower:
+            admin_health(message)
+        elif "защита" in text_lower:
+            admin_security(message)
+        elif "тарифы" in text_lower:
+            admin_tariffs(message)
+        elif "обновить" in text_lower:
+            admin_reload(message)
+        elif "статус" in text_lower:
+            admin_status(message)
+        elif "очистить" in text_lower:
+            admin_clean(message)
+        elif "обучение" in text_lower:
+            learning_mode(message)
+        elif "فتح" in text_lower:
+            sacred_launch(message)
+        else:
+            bot.reply_to(message, "🤖 Команда не распознана", parse_mode="Markdown")
+    else:
+        if "бизнес" in text_lower:
+            business_section(message)
+        elif "люди" in text_lower:
+            people_section(message)
+        elif "монетизация" in text_lower:
+            monetization_section(message)
+        elif "мастер" in text_lower:
+            looking_for_master(message)
+        elif "работа" in text_lower:
+            work_short(message)
+        elif "баланс" in text_lower:
+            balance_short(message)
+        elif "помощь" in text_lower:
+            help_short(message)
+        else:
+            bot.reply_to(message, f"🤖 Я вас услышал", parse_mode="Markdown")
 
 # ==================================================
 # 📦 БАЗА ДАННЫХ
@@ -144,6 +247,11 @@ c.execute('''CREATE TABLE IF NOT EXISTS payments (
 c.execute('''CREATE TABLE IF NOT EXISTS earnings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source TEXT, amount INTEGER, user_id INTEGER, created_at TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS learning_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER, request TEXT, code TEXT, created_at TEXT
 )''')
 
 c.execute('''CREATE TABLE IF NOT EXISTS logs (
@@ -223,12 +331,13 @@ def confirm_payment(tx_id):
 
 def get_main_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    kb.add(KeyboardButton("👑 ХРАНИТЕЛЬ"))
     kb.add(KeyboardButton("🏢 БИЗНЕС"))
     kb.add(KeyboardButton("👤 ЛЮДИ"))
     kb.add(KeyboardButton("💰 МОНЕТИЗАЦИЯ"))
     kb.add(KeyboardButton("🔍 НАЙТИ МАСТЕРА"))
     kb.add(KeyboardButton("💼 ИЩУ РАБОТУ"))
+    kb.add(KeyboardButton("🎤 ГОЛОС"))
+    kb.add(KeyboardButton("🆘 ПОМОЩЬ"))
     return kb
 
 def get_founder_keyboard():
@@ -238,24 +347,26 @@ def get_founder_keyboard():
     kb.add(KeyboardButton("💳 ПЛАТЕЖИ"), KeyboardButton("🏦 ВЫВОДЫ"), KeyboardButton("📊 ДОХОДЫ"))
     kb.add(KeyboardButton("📜 ЛОГИ"), KeyboardButton("🔍 ПОИСК"), KeyboardButton("📈 ОТЧЁТ"))
     kb.add(KeyboardButton("🩺 ЗДОРОВЬЕ"), KeyboardButton("🛡️ ЗАЩИТА"), KeyboardButton("💎 ТАРИФЫ"))
-    kb.add(KeyboardButton("🔄 ОБНОВИТЬ"), KeyboardButton("📡 СТАТУС"), KeyboardButton("🧹 ОЧИСТИТЬ"))
-    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("🔘 الفتح"), KeyboardButton("🧠 ОБУЧЕНИЕ"), KeyboardButton("🔄 ОБНОВИТЬ"))
+    kb.add(KeyboardButton("📡 СТАТУС"), KeyboardButton("🧹 ОЧИСТИТЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 def get_people_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     kb.add(KeyboardButton("💸 РАБОТА"), KeyboardButton("📦 ЗАКАЗЫ"))
     kb.add(KeyboardButton("🔍 НАЙТИ МАСТЕРА"), KeyboardButton("💼 ИЩУ РАБОТУ"))
-    kb.add(KeyboardButton("💰 БАЛАНС"), KeyboardButton("❓ ВОПРОС"))
-    kb.add(KeyboardButton("🆘 ПОМОЩЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("🎤 ГОЛОС"), KeyboardButton("💰 БАЛАНС"))
+    kb.add(KeyboardButton("❓ ВОПРОС"), KeyboardButton("🆘 ПОМОЩЬ"))
+    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 def get_business_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     kb.add(KeyboardButton("📊 АНАЛИТИКА"), KeyboardButton("🤖 АВТОМАТИЗАЦИЯ"))
     kb.add(KeyboardButton("📈 ЛИЗИНГ"), KeyboardButton("💼 ЗАКАЗЫ"))
-    kb.add(KeyboardButton("💰 БАЛАНС"), KeyboardButton("❓ ВОПРОС"))
-    kb.add(KeyboardButton("🆘 ПОМОЩЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("🎤 ГОЛОС"), KeyboardButton("💰 БАЛАНС"))
+    kb.add(KeyboardButton("❓ ВОПРОС"), KeyboardButton("🆘 ПОМОЩЬ"))
+    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 def get_monetization_keyboard():
@@ -393,11 +504,11 @@ def founder_section(message):
 
 @bot.message_handler(func=lambda m: m.text == "🏢 БИЗНЕС")
 def business_section(message):
-    bot.reply_to(message, "🏢 *БИЗНЕС-РАЗДЕЛ*\n\n📊 Аналитика\n🤖 Автоматизация\n📈 Лизинг", reply_markup=get_business_keyboard(), parse_mode="Markdown")
+    bot.reply_to(message, "🏢 *БИЗНЕС-РАЗДЕЛ*", reply_markup=get_business_keyboard(), parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "👤 ЛЮДИ")
 def people_section(message):
-    bot.reply_to(message, "👤 *ОБЫЧНЫЙ РАЗДЕЛ*\n\n💼 Работа\n🔧 Мастера", reply_markup=get_people_keyboard(), parse_mode="Markdown")
+    bot.reply_to(message, "👤 *ОБЫЧНЫЙ РАЗДЕЛ*", reply_markup=get_people_keyboard(), parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "💰 МОНЕТИЗАЦИЯ")
 def monetization_section(message):
@@ -419,6 +530,110 @@ def monetization_section(message):
 💎 USDT: {CRYPTO_WALLET}
 """
     bot.reply_to(message, msg, reply_markup=get_monetization_keyboard(), parse_mode="Markdown")
+
+# ==================================================
+# 🔘 ВЕЛИКОЕ ОТКРЫТИЕ (الفتح)
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "🔘 الفتح")
+def sacred_launch(message):
+    if not is_admin(message.chat.id):
+        bot.reply_to(message, "❌ Только Хранитель")
+        return
+    
+    msg = """
+🔘 *الفتح — ВЕЛИКОЕ ОТКРЫТИЕ*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤲 *بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ*
+
+☀️ *Свершилось.* «Зеркало» начинает свой путь.
+
+✅ Врата блага ОТКРЫТЫ
+✅ Система НАЧАЛА работу
+✅ Благословение НИСХОДИТ
+✅ Заработок ВКЛЮЧЁН 24/7
+
+*Альхамдулиллах.* 🤲
+"""
+    bot.reply_to(message, msg, parse_mode="Markdown")
+    
+    c.execute("SELECT user_id FROM users")
+    users = c.fetchall()
+    for u in users[:10]:
+        try:
+            bot.send_message(u[0], "🪞 *ЗЕРКАЛО ЗАПУЩЕНО!*\n\nНачинается новая эра. Альхамдулиллах.", parse_mode="Markdown")
+            time.sleep(0.5)
+        except:
+            pass
+
+# ==================================================
+# 🧠 ОБУЧЕНИЕ (САМОКОДИРОВАНИЕ)
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "🧠 ОБУЧЕНИЕ")
+def learning_mode(message):
+    if not is_admin(message.chat.id):
+        bot.reply_to(message, "❌ Только Хранитель")
+        return
+    
+    bot.reply_to(message, """
+🧠 *РЕЖИМ ОБУЧЕНИЯ*
+
+📝 Напишите, что нужно создать или изменить:
+
+Примеры:
+• «создай кнопку ПОГОДА»
+• «добавь модуль для курсов валют»
+• «исправь ошибку в логистике»
+
+⚡ Я сгенерирую код и внедрю его автоматически!
+""", parse_mode="Markdown")
+    
+    bot.register_next_step_handler(message, process_learning_request)
+
+def process_learning_request(message):
+    user_id = message.chat.id
+    request = message.text
+    
+    if not is_admin(user_id):
+        return
+    
+    bot.reply_to(message, f"🧠 *ПРИНЯТО!*\n\n📝 Запрос: {request}\n\n⏳ Генерирую код...", parse_mode="Markdown")
+    
+    if client:
+        try:
+            prompt = f"""
+Напиши код для Telegram бота на Python для задачи: {request}
+
+Требования:
+1. Используй библиотеку telebot
+2. Добавь обработчик
+3. Добавь кнопку в клавиатуру (если нужно)
+4. Всё на русском языке
+5. Код должен быть готов к вставке
+
+Верни ТОЛЬКО код, без пояснений.
+"""
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5
+            )
+            code = response.choices[0].message.content
+            
+            bot.reply_to(message, f"✅ *КОД СОЗДАН!*\n\n```python\n{code[:1500]}\n```\n\n💾 Сохраняю в базу знаний...", parse_mode="Markdown")
+            
+            c.execute("INSERT INTO learning_history (user_id, request, code, created_at) VALUES (?, ?, ?, ?)",
+                      (user_id, request, code, astana_time()))
+            conn.commit()
+            
+            bot.reply_to(message, "📥 *Код сохранён в базу знаний!*\n\n🔜 В следующей версии я научусь автоматически внедрять код.", parse_mode="Markdown")
+            
+        except Exception as e:
+            bot.reply_to(message, f"❌ Ошибка: {e}")
+    else:
+        bot.reply_to(message, "⚠️ AI не настроен. Добавьте GROQ_API_KEY")
 
 # ==================================================
 # 💰 KASPI QR И ОПЛАТА
@@ -812,6 +1027,7 @@ def help_short(message):
 
 💼 ИЩУ РАБОТУ — найти работу
 🔍 НАЙТИ МАСТЕРА — найти специалиста
+🎤 ГОЛОС — голосовое управление
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *БЛАГА:*
@@ -826,7 +1042,9 @@ def help_short(message):
 
 @bot.message_handler(func=lambda m: m.text == "🔙 НА ГЛАВНУЮ")
 def back_main(message):
-    if is_admin(message.chat.id):
+    user_id = message.chat.id
+    
+    if is_admin(user_id):
         bot.reply_to(message, "👑 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_founder_keyboard(), parse_mode="Markdown")
     else:
         bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
@@ -886,12 +1104,12 @@ def handle_any(message):
         "📈 ОТЧЁТ", "🩺 ЗДОРОВЬЕ", "🛡️ ЗАЩИТА", "💎 ТАРИФЫ",
         "🔄 ОБНОВИТЬ", "📡 СТАТУС", "🧹 ОЧИСТИТЬ", "💸 РАБОТА",
         "📦 ЗАКАЗЫ", "💰 БАЛАНС", "❓ ВОПРОС", "🆘 ПОМОЩЬ",
-        "💼 ИЩУ РАБОТУ", "🔍 НАЙТИ МАСТЕРА",
+        "💼 ИЩУ РАБОТУ", "🔍 НАЙТИ МАСТЕРА", "🎤 ГОЛОС",
         "💎 КУПИТЬ ТАРИФ", "⭐ ПАРТНЁРСКАЯ", "🏦 KASPI QR",
         "💎 USDT TRC20", "📊 МОЙ ДОХОД", "📈 ОБЩАЯ СТАТИСТИКА",
         "💸 ВЫВЕСТИ", "📋 ИСТОРИЯ",
         "👤 ОБЫЧНЫЙ ПОЛЬЗОВАТЕЛЬ", "🏢 БИЗНЕСМЕН",
-        "👵 ПОЖИЛОЙ ЧЕЛОВЕК", "🧒 РЕБЁНОК"
+        "👵 ПОЖИЛОЙ ЧЕЛОВЕК", "🧒 РЕБЁНОК", "🔘 الفتح", "🧠 ОБУЧЕНИЕ"
     ]
     if text in all_buttons:
         return
@@ -938,11 +1156,13 @@ threading.Thread(target=status_worker, daemon=True).start()
 # ==================================================
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - АВТОНОМНАЯ ВЕРСИЯ")
+print("🪞 ЗЕРКАЛО - ПОЛНАЯ ВЕРСИЯ")
 print("=" * 70)
 print(f"✅ Бот запущен успешно")
 print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
 print(f"🔵 ПИНГЕР: ЗАПУЩЕН (каждые 2 минуты) — НЕ ЗАСНЁТ")
+print(f"🎤 ГОЛОС: АКТИВЕН")
+print(f"🧠 ОБУЧЕНИЕ: АКТИВНО")
 print(f"💎 СИСТЕМА БЛАГ: АКТИВНА")
 print(f"💰 МОНЕТИЗАЦИЯ: АКТИВНА")
 print("=" * 70)
