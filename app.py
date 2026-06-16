@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🪞 ЗЕРКАЛО - ПОЛНАЯ ВЕРСИЯ
+🪞 ЗЕРКАЛО - ИДЕАЛЬНАЯ ВЕРСИЯ
 ═══════════════════════════════════════════════════════════════════
-✅ ГОЛОСОВОЕ УПРАВЛЕНИЕ
-✅ ОБУЧЕНИЕ ЧЕРЕЗ ТЕЛЕГРАМ
-✅ НИКОГДА НЕ ЗАСЫПАЕТ
-✅ ВСЕ КНОПКИ
+Всё в одном файле. Работает 24/7. Самообучается. Разумное общение.
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -22,13 +19,12 @@ import re
 import hashlib
 import speech_recognition as sr
 from pydub import AudioSegment
-import io
 from datetime import datetime, timedelta
 from flask import Flask
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 # ==================================================
-# УСТАНОВКА БИБЛИОТЕК
+# ⚡ УСТАНОВКА БИБЛИОТЕК
 # ==================================================
 
 def install_package(package):
@@ -49,23 +45,25 @@ import telebot
 from groq import Groq
 
 # ==================================================
-# НАСТРОЙКИ
+# 🔧 НАСТРОЙКИ
 # ==================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
+# Священные ID — НЕ ТРОГАТЬ!
 FOUNDER_ID = 5409420822
 TOMIRIS_ID = 5479179814
 ADMIN_IDS = [5409420822, 5479179814]
 
+# Финансы
 KASPI_PHONE = "+777733440345"
 CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
 KASPI_NAME = "Нурсулу"
 RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - ПОЛНАЯ ВЕРСИЯ")
+print("🪞 ЗЕРКАЛО - ИДЕАЛЬНАЯ ВЕРСИЯ")
 print("=" * 70)
 print(f"✅ BOT_TOKEN: {TOKEN[:10] if TOKEN else 'НЕТ'}...")
 print(f"✅ GROQ_API_KEY: {'есть' if GROQ_API_KEY else 'НЕТ'}")
@@ -85,7 +83,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 # ==================================================
-# ⏰ СУПЕР-ПИНГЕР — НЕ ДАЁТ ЗАСНУТЬ!
+# ⏰ СУПЕР-ПИНГЕР — НЕ ДАЁТ ЗАСНУТЬ
 # ==================================================
 
 def super_pinger():
@@ -101,110 +99,6 @@ def super_pinger():
         time.sleep(120)
 
 threading.Thread(target=super_pinger, daemon=True).start()
-
-# ==================================================
-# 🎤 ГОЛОСОВОЕ УПРАВЛЕНИЕ
-# ==================================================
-
-@bot.message_handler(content_types=['voice'])
-def handle_voice(message):
-    user_id = message.chat.id
-    
-    bot.reply_to(message, "🎤 *РАСПОЗНАЮ ГОЛОС...*", parse_mode="Markdown")
-    
-    try:
-        file_info = bot.get_file(message.voice.file_id)
-        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
-        response = requests.get(file_url)
-        
-        ogg_path = f"/tmp/voice_{user_id}.ogg"
-        with open(ogg_path, 'wb') as f:
-            f.write(response.content)
-        
-        wav_path = f"/tmp/voice_{user_id}.wav"
-        audio = AudioSegment.from_ogg(ogg_path)
-        audio.export(wav_path, format="wav")
-        
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(wav_path) as source:
-            audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data, language="ru-RU")
-        
-        os.remove(ogg_path)
-        os.remove(wav_path)
-        
-        bot.reply_to(message, f"🎤 *ВЫ СКАЗАЛИ:*\n{text}", parse_mode="Markdown")
-        process_voice_command(message, text)
-        
-    except sr.UnknownValueError:
-        bot.reply_to(message, "❌ Не удалось распознать речь", parse_mode="Markdown")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка: {str(e)[:100]}", parse_mode="Markdown")
-
-def process_voice_command(message, text):
-    text_lower = text.lower()
-    user_id = message.chat.id
-    
-    if is_admin(user_id):
-        if "панель" in text_lower or "хранитель" in text_lower:
-            founder_section(message)
-        elif "статистика" in text_lower:
-            admin_stats(message)
-        elif "онлайн" in text_lower:
-            admin_online(message)
-        elif "люди" in text_lower:
-            admin_users(message)
-        elif "блага" in text_lower:
-            admin_top(message)
-        elif "рассылка" in text_lower:
-            msg = bot.reply_to(message, "📤 Текст для рассылки:")
-            bot.register_next_step_handler(msg, do_broadcast)
-        elif "финансы" in text_lower:
-            admin_finance(message)
-        elif "доходы" in text_lower:
-            admin_earnings(message)
-        elif "логи" in text_lower:
-            admin_logs(message)
-        elif "поиск" in text_lower:
-            msg = bot.reply_to(message, "🔍 Введите ID:")
-            bot.register_next_step_handler(msg, search_user)
-        elif "отчёт" in text_lower:
-            admin_report(message)
-        elif "здоровье" in text_lower:
-            admin_health(message)
-        elif "защита" in text_lower:
-            admin_security(message)
-        elif "тарифы" in text_lower:
-            admin_tariffs(message)
-        elif "обновить" in text_lower:
-            admin_reload(message)
-        elif "статус" in text_lower:
-            admin_status(message)
-        elif "очистить" in text_lower:
-            admin_clean(message)
-        elif "обучение" in text_lower:
-            learning_mode(message)
-        elif "فتح" in text_lower:
-            sacred_launch(message)
-        else:
-            bot.reply_to(message, "🤖 Команда не распознана", parse_mode="Markdown")
-    else:
-        if "бизнес" in text_lower:
-            business_section(message)
-        elif "люди" in text_lower:
-            people_section(message)
-        elif "монетизация" in text_lower:
-            monetization_section(message)
-        elif "мастер" in text_lower:
-            looking_for_master(message)
-        elif "работа" in text_lower:
-            work_short(message)
-        elif "баланс" in text_lower:
-            balance_short(message)
-        elif "помощь" in text_lower:
-            help_short(message)
-        else:
-            bot.reply_to(message, f"🤖 Я вас услышал", parse_mode="Markdown")
 
 # ==================================================
 # 📦 БАЗА ДАННЫХ
@@ -268,6 +162,8 @@ def is_admin(user_id):
     return user_id in ADMIN_IDS
 
 def get_balance(user_id):
+    if user_id == FOUNDER_ID:
+        return 999999999
     c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
     row = c.fetchone()
     return row[0] if row else 100
@@ -326,18 +222,130 @@ def confirm_payment(tx_id):
     return False, 0, None
 
 # ==================================================
+# 🎤 ГОЛОСОВОЕ УПРАВЛЕНИЕ
+# ==================================================
+
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+    user_id = message.chat.id
+    
+    bot.reply_to(message, "🎤 *РАСПОЗНАЮ ГОЛОС...*", parse_mode="Markdown")
+    
+    try:
+        file_info = bot.get_file(message.voice.file_id)
+        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
+        response = requests.get(file_url)
+        
+        ogg_path = f"/tmp/voice_{user_id}.ogg"
+        with open(ogg_path, 'wb') as f:
+            f.write(response.content)
+        
+        wav_path = f"/tmp/voice_{user_id}.wav"
+        audio = AudioSegment.from_ogg(ogg_path)
+        audio.export(wav_path, format="wav")
+        
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(wav_path) as source:
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data, language="ru-RU")
+        
+        os.remove(ogg_path)
+        os.remove(wav_path)
+        
+        bot.reply_to(message, f"🎤 *ВЫ СКАЗАЛИ:*\n{text}", parse_mode="Markdown")
+        
+        # Обрабатываем голосовую команду
+        process_voice_command(message, text)
+        
+    except sr.UnknownValueError:
+        bot.reply_to(message, "❌ Не удалось распознать речь", parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {str(e)[:100]}", parse_mode="Markdown")
+
+def process_voice_command(message, text):
+    """Обрабатывает голосовую команду"""
+    text_lower = text.lower()
+    user_id = message.chat.id
+    
+    if is_admin(user_id):
+        # Команды Хранителя
+        if "панель" in text_lower or "хранитель" in text_lower:
+            founder_section(message)
+        elif "онлайн" in text_lower:
+            admin_online(message)
+        elif "статистика" in text_lower:
+            admin_stats(message)
+        elif "финансы" in text_lower:
+            admin_finance(message)
+        elif "люди" in text_lower:
+            admin_users(message)
+        elif "блага" in text_lower:
+            admin_top(message)
+        elif "рассылка" in text_lower:
+            msg = bot.reply_to(message, "📤 Текст для рассылки:")
+            bot.register_next_step_handler(msg, do_broadcast)
+        elif "логи" in text_lower:
+            admin_logs(message)
+        elif "поиск" in text_lower:
+            msg = bot.reply_to(message, "🔍 Введите ID:")
+            bot.register_next_step_handler(msg, search_user)
+        elif "отчёт" in text_lower:
+            admin_report(message)
+        elif "здоровье" in text_lower:
+            admin_health(message)
+        elif "тарифы" in text_lower:
+            admin_tariffs(message)
+        elif "статус" in text_lower:
+            admin_status(message)
+        elif "обновить" in text_lower:
+            admin_reload(message)
+        elif "очистить" in text_lower:
+            admin_clean(message)
+        elif "فتح" in text_lower:
+            sacred_launch(message)
+        elif "обучение" in text_lower:
+            learning_mode(message)
+        elif "работа" in text_lower:
+            work_menu(message)
+        elif "заказы" in text_lower:
+            orders_menu(message)
+        elif "мастер" in text_lower:
+            looking_for_master(message)
+        elif "баланс" in text_lower:
+            balance_short(message)
+        else:
+            # Разумный ответ
+            answer = smart_response(user_id, text)
+            bot.reply_to(message, answer)
+    else:
+        # Команды для обычных пользователей
+        if "работа" in text_lower:
+            work_menu(message)
+        elif "заказы" in text_lower:
+            orders_menu(message)
+        elif "мастер" in text_lower:
+            looking_for_master(message)
+        elif "ищу работу" in text_lower:
+            looking_for_job(message)
+        elif "баланс" in text_lower:
+            balance_short(message)
+        elif "помощь" in text_lower:
+            help_section(message)
+        else:
+            # Разумный ответ для всех
+            answer = smart_response(user_id, text)
+            bot.reply_to(message, answer)
+
+# ==================================================
 # 📱 КЛАВИАТУРЫ
 # ==================================================
 
 def get_main_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    kb.add(KeyboardButton("👑 ХРАНИТЕЛЬ"))
     kb.add(KeyboardButton("🏢 БИЗНЕС"))
     kb.add(KeyboardButton("👤 ЛЮДИ"))
-    kb.add(KeyboardButton("💰 МОНЕТИЗАЦИЯ"))
-    kb.add(KeyboardButton("🔍 НАЙТИ МАСТЕРА"))
-    kb.add(KeyboardButton("💼 ИЩУ РАБОТУ"))
-    kb.add(KeyboardButton("🎤 ГОЛОС"))
-    kb.add(KeyboardButton("🆘 ПОМОЩЬ"))
+    kb.add(KeyboardButton("📋 ПОМОЩЬ"))
     return kb
 
 def get_founder_keyboard():
@@ -347,43 +355,41 @@ def get_founder_keyboard():
     kb.add(KeyboardButton("💳 ПЛАТЕЖИ"), KeyboardButton("🏦 ВЫВОДЫ"), KeyboardButton("📊 ДОХОДЫ"))
     kb.add(KeyboardButton("📜 ЛОГИ"), KeyboardButton("🔍 ПОИСК"), KeyboardButton("📈 ОТЧЁТ"))
     kb.add(KeyboardButton("🩺 ЗДОРОВЬЕ"), KeyboardButton("🛡️ ЗАЩИТА"), KeyboardButton("💎 ТАРИФЫ"))
-    kb.add(KeyboardButton("🔘 الفتح"), KeyboardButton("🧠 ОБУЧЕНИЕ"), KeyboardButton("🔄 ОБНОВИТЬ"))
-    kb.add(KeyboardButton("📡 СТАТУС"), KeyboardButton("🧹 ОЧИСТИТЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
-    return kb
-
-def get_people_keyboard():
-    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    kb.add(KeyboardButton("💸 РАБОТА"), KeyboardButton("📦 ЗАКАЗЫ"))
-    kb.add(KeyboardButton("🔍 НАЙТИ МАСТЕРА"), KeyboardButton("💼 ИЩУ РАБОТУ"))
-    kb.add(KeyboardButton("🎤 ГОЛОС"), KeyboardButton("💰 БАЛАНС"))
-    kb.add(KeyboardButton("❓ ВОПРОС"), KeyboardButton("🆘 ПОМОЩЬ"))
-    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("🔘 الفتح"), KeyboardButton("🧠 ОБУЧЕНИЕ"), KeyboardButton("💬 РАЗУМНОЕ ОБЩЕНИЕ"))
+    kb.add(KeyboardButton("🔄 ОБНОВИТЬ"), KeyboardButton("📡 СТАТУС"), KeyboardButton("🧹 ОЧИСТИТЬ"))
+    kb.add(KeyboardButton("📋 КОМАНДЫ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 def get_business_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     kb.add(KeyboardButton("📊 АНАЛИТИКА"), KeyboardButton("🤖 АВТОМАТИЗАЦИЯ"))
     kb.add(KeyboardButton("📈 ЛИЗИНГ"), KeyboardButton("💼 ЗАКАЗЫ"))
-    kb.add(KeyboardButton("🎤 ГОЛОС"), KeyboardButton("💰 БАЛАНС"))
-    kb.add(KeyboardButton("❓ ВОПРОС"), KeyboardButton("🆘 ПОМОЩЬ"))
-    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("💳 KASPI QR"), KeyboardButton("💰 БАЛАНС"))
+    kb.add(KeyboardButton("💬 РАЗУМНОЕ ОБЩЕНИЕ"), KeyboardButton("❓ ВОПРОС"))
+    kb.add(KeyboardButton("🆘 ПОМОЩЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
-def get_monetization_keyboard():
+def get_people_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    kb.add(KeyboardButton("💎 КУПИТЬ ТАРИФ"), KeyboardButton("⭐ ПАРТНЁРСКАЯ"))
-    kb.add(KeyboardButton("🏦 KASPI QR"), KeyboardButton("💎 USDT TRC20"))
-    kb.add(KeyboardButton("📊 МОЙ ДОХОД"), KeyboardButton("📈 ОБЩАЯ СТАТИСТИКА"))
-    kb.add(KeyboardButton("💸 ВЫВЕСТИ"), KeyboardButton("📋 ИСТОРИЯ"))
-    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("💸 РАБОТА"), KeyboardButton("📦 ЗАКАЗЫ"))
+    kb.add(KeyboardButton("🔍 НАЙТИ МАСТЕРА"), KeyboardButton("💼 ИЩУ РАБОТУ"))
+    kb.add(KeyboardButton("📸 ФОТО"), KeyboardButton("🎤 ГОЛОС"))
+    kb.add(KeyboardButton("📍 АПТЕКА"), KeyboardButton("📝 РЕЗЮМЕ"))
+    kb.add(KeyboardButton("💳 KASPI QR"), KeyboardButton("💰 БАЛАНС"))
+    kb.add(KeyboardButton("💬 РАЗУМНОЕ ОБЩЕНИЕ"), KeyboardButton("❓ ВОПРОС"))
+    kb.add(KeyboardButton("🆘 ПОМОЩЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
-def get_tariff_keyboard():
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(InlineKeyboardButton("📱 Бесплатный", callback_data="tariff_free"))
-    kb.add(InlineKeyboardButton("⭐ Базовый - 1000₸", callback_data="tariff_basic"))
-    kb.add(InlineKeyboardButton("🚀 PRO - 5000₸", callback_data="tariff_pro"))
-    kb.add(InlineKeyboardButton("💎 Бизнес - 20000₸", callback_data="tariff_business"))
+def get_work_keyboard():
+    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    kb.add(KeyboardButton("🔍 НАЙТИ РАБОТУ"), KeyboardButton("➕ СОЗДАТЬ ВАКАНСИЮ"))
+    kb.add(KeyboardButton("📝 МОЁ РЕЗЮМЕ"), KeyboardButton("🔙 НАЗАД"))
+    return kb
+
+def get_orders_keyboard():
+    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    kb.add(KeyboardButton("🔍 НАЙТИ ЗАКАЗ"), KeyboardButton("➕ СОЗДАТЬ ЗАКАЗ"))
+    kb.add(KeyboardButton("📋 МОИ ЗАКАЗЫ"), KeyboardButton("🔙 НАЗАД"))
     return kb
 
 def get_role_keyboard():
@@ -394,6 +400,29 @@ def get_role_keyboard():
     kb.add(KeyboardButton("🧒 РЕБЁНОК"))
     return kb
 
+def get_tariff_keyboard():
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(InlineKeyboardButton("📱 Бесплатный", callback_data="tariff_free"))
+    kb.add(InlineKeyboardButton("⭐ Базовый - 1000₸", callback_data="tariff_basic"))
+    kb.add(InlineKeyboardButton("🚀 PRO - 5000₸", callback_data="tariff_pro"))
+    kb.add(InlineKeyboardButton("💎 Бизнес - 20000₸", callback_data="tariff_business"))
+    return kb
+
+def get_commands_keyboard():
+    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    kb.add(KeyboardButton("📊 /usage"))
+    kb.add(KeyboardButton("📜 /history"))
+    kb.add(KeyboardButton("🔍 /search"))
+    kb.add(KeyboardButton("📦 /archive"))
+    kb.add(KeyboardButton("📋 /archives"))
+    kb.add(KeyboardButton("🧠 /grok"))
+    kb.add(KeyboardButton("🧠 /deepseek"))
+    kb.add(KeyboardButton("💾 /save"))
+    kb.add(KeyboardButton("🗑️ /clear"))
+    kb.add(KeyboardButton("📈 /stats"))
+    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    return kb
+
 TARIFFS = {
     "free": {"name": "Бесплатный", "price": 0},
     "basic": {"name": "Базовый", "price": 1000},
@@ -402,7 +431,101 @@ TARIFFS = {
 }
 
 # ==================================================
-# 🤖 ОСНОВНЫЕ КОМАНДЫ
+# 🧠 РАЗУМНОЕ ОБЩЕНИЕ (ДЛЯ ВСЕХ)
+# ==================================================
+
+def smart_response(user_id, text):
+    """Разумный ответ для любого пользователя"""
+    
+    text_lower = text.lower()
+    
+    # ===== ПРИВЕТСТВИЯ =====
+    if any(word in text_lower for word in ["привет", "здравствуй", "салам", "ассаляму", "хай", "hello"]):
+        return "🪞 Ассаляму алейкум! Рад вас видеть!\n\n💬 Как у вас дела? Чем могу помочь сегодня?"
+    
+    # ===== КАК ДЕЛА? =====
+    if any(word in text_lower for word in ["как дела", "как жизнь", "как ты", "что нового"]):
+        return "🪞 У меня всё отлично! Я учусь и становлюсь умнее каждый день.\n\n💬 А у вас как? Расскажите!"
+    
+    # ===== ИМЯ =====
+    if any(word in text_lower for word in ["как тебя зовут", "твоё имя", "кто ты"]):
+        return "🪞 Меня зовут Зеркало. Я — ваш персональный помощник и друг.\n\n💬 Я здесь, чтобы помогать и поддерживать вас."
+    
+    # ===== РАБОТА =====
+    if any(word in text_lower for word in ["работа", "вакансия", "устроиться", "деньги", "зарплата"]):
+        return """💼 *РАБОТА*
+
+Хотите найти работу? Я помогу!
+
+📝 Напишите «ИЩУ РАБОТУ» и опишите свои навыки.
+
+💡 Или нажмите кнопку «💸 РАБОТА» в разделе «👤 ЛЮДИ»
+"""
+    
+    # ===== ЗАКАЗЫ =====
+    if any(word in text_lower for word in ["заказ", "услуга", "мастер", "сделать"]):
+        return """📦 *ЗАКАЗЫ*
+
+Хотите создать заказ или найти мастера?
+
+📝 Напишите «СОЗДАТЬ ЗАКАЗ» и опишите задачу.
+
+💡 Или нажмите кнопку «📦 ЗАКАЗЫ» в разделе «👤 ЛЮДИ»
+"""
+    
+    # ===== БАЛАНС =====
+    if any(word in text_lower for word in ["баланс", "блага", "сколько"]):
+        balance = get_balance(user_id)
+        return f"""💰 *ВАШ БАЛАНС:* {balance} Благ
+
+💎 Пополнить: /pay
+"""
+    
+    # ===== ПОМОЩЬ =====
+    if any(word in text_lower for word in ["помощь", "что делать", "как быть"]):
+        return """🪞 *Я МОГУ ПОМОЧЬ!*
+
+💼 Найти работу
+📦 Создать заказ
+🔍 Найти мастера
+💰 Проверить баланс
+🎤 Понять голос
+🧠 Обучиться новому
+
+💬 Просто скажите, что вам нужно!
+"""
+    
+    # ===== ГРУСТЬ =====
+    if any(word in text_lower for word in ["грустно", "плохо", "тяжело", "устал"]):
+        return "🪞 Я с вами! Хотите поговорить? Я здесь, чтобы выслушать.\n\n🌱 Всё будет хорошо! 🤲"
+    
+    # ===== РАДОСТЬ =====
+    if any(word in text_lower for word in ["хорошо", "отлично", "супер", "класс"]):
+        return "🪞 Как здорово! Я очень рад за вас!\n\n😊 Расскажите подробнее!"
+    
+    # ===== СПАСИБО =====
+    if "спасибо" in text_lower or "благодарю" in text_lower:
+        return "🪞 Пожалуйста! Всегда рад помочь! 🤲"
+    
+    # ===== ДО СВИДАНИЯ =====
+    if any(word in text_lower for word in ["пока", "до свидания", "прощай"]):
+        return "🪞 До свидания! Заходите ещё, я всегда здесь.\n\n🤲 Всего доброго!"
+    
+    # ===== ЕСЛИ НИЧЕГО НЕ ПОДОШЛО =====
+    return f"""🪞 Я вас услышал!
+
+💬 Я могу помочь с:
+• Поиском работы
+• Созданием заказа
+• Поиском мастера
+• Проверкой баланса
+• Просто поболтать
+
+❓ Спросите меня о чём угодно.
+"""
+
+# ==================================================
+# 🤖 /start
 # ==================================================
 
 @bot.message_handler(commands=['start'])
@@ -410,22 +533,28 @@ def cmd_start(message):
     user_id = message.chat.id
     name = message.from_user.first_name
     
+    # Хранитель узнаётся сразу!
+    if user_id == FOUNDER_ID or user_id == TOMIRIS_ID:
+        c.execute("INSERT OR REPLACE INTO users (user_id, name, is_admin, role, blessings) VALUES (?, ?, ?, ?, ?)",
+                  (user_id, name, 1, 'founder', 999999999))
+        conn.commit()
+        bot.reply_to(message, f"👑 АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!\n\n📱 ВЫБЕРИТЕ РАЗДЕЛ:", 
+                     reply_markup=get_main_keyboard())
+        return
+    
+    # Обычная регистрация
     c.execute("SELECT user_id FROM users WHERE user_id=?", (user_id,))
     if not c.fetchone():
         c.execute("INSERT INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
-        if is_admin(user_id):
-            c.execute("UPDATE users SET is_admin=1, tariff='pro' WHERE user_id=?", (user_id,))
         conn.commit()
-        bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n✨ Вы получили 100 Благ!\n\nКто вы?", reply_markup=get_role_keyboard())
+        bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n✨ Вы получили 100 Благ!\n\nКто вы?", 
+                     reply_markup=get_role_keyboard())
         return
     
     c.execute("UPDATE users SET last_seen=? WHERE user_id=?", (astana_time(), user_id))
     conn.commit()
-    
-    if is_admin(user_id):
-        bot.reply_to(message, f"👑 АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!\n\n📱 ПАНЕЛЬ УПРАВЛЕНИЯ:", reply_markup=get_founder_keyboard())
-    else:
-        bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n💰 Баланс: {get_balance(user_id)} Благ\n\nКто вы?", reply_markup=get_role_keyboard())
+    bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n💰 Баланс: {get_balance(user_id)} Благ\n\nКто вы?", 
+                 reply_markup=get_role_keyboard())
 
 @bot.message_handler(commands=['id'])
 def cmd_id(message):
@@ -433,10 +562,225 @@ def cmd_id(message):
 
 @bot.message_handler(commands=['pay'])
 def cmd_pay(message):
+    user_id = message.chat.id
+    if user_id == FOUNDER_ID:
+        bot.reply_to(message, "👑 У вас безграничные Блага.", parse_mode="Markdown")
+        return
     bot.reply_to(message, "💎 *ВЫБЕРИТЕ ТАРИФ*", reply_markup=get_tariff_keyboard(), parse_mode="Markdown")
 
 # ==================================================
-# 💼 ПОИСК РАБОТЫ И МАСТЕРОВ
+# 🔄 ВЫБОР РОЛИ
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text in ["👤 ОБЫЧНЫЙ ПОЛЬЗОВАТЕЛЬ", "ОБЫЧНЫЙ ПОЛЬЗОВАТЕЛЬ"])
+def set_user_role(message):
+    c.execute("UPDATE users SET role='user' WHERE user_id=?", (message.chat.id,))
+    conn.commit()
+    bot.reply_to(message, "✅ Обычный режим", reply_markup=get_main_keyboard())
+
+@bot.message_handler(func=lambda m: m.text in ["🏢 БИЗНЕСМЕН", "БИЗНЕСМЕН"])
+def set_business_role(message):
+    c.execute("UPDATE users SET role='business' WHERE user_id=?", (message.chat.id,))
+    conn.commit()
+    bot.reply_to(message, "✅ Бизнес-режим", reply_markup=get_main_keyboard())
+
+@bot.message_handler(func=lambda m: m.text in ["👵 ПОЖИЛОЙ ЧЕЛОВЕК", "ПОЖИЛОЙ ЧЕЛОВЕК"])
+def set_elder_role(message):
+    c.execute("UPDATE users SET role='elder' WHERE user_id=?", (message.chat.id,))
+    conn.commit()
+    bot.reply_to(message, "✅ Режим для пожилых", reply_markup=get_main_keyboard())
+
+@bot.message_handler(func=lambda m: m.text in ["🧒 РЕБЁНОК", "РЕБЁНОК"])
+def set_child_role(message):
+    c.execute("UPDATE users SET role='child' WHERE user_id=?", (message.chat.id,))
+    conn.commit()
+    bot.reply_to(message, "✅ Детский режим", reply_markup=get_main_keyboard())
+
+# ==================================================
+# 👑 РАЗДЕЛ ХРАНИТЕЛЯ
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "👑 ХРАНИТЕЛЬ")
+def founder_section(message):
+    user_id = message.chat.id
+    if is_admin(user_id):
+        bot.reply_to(message, "👑 *ПАНЕЛЬ ХРАНИТЕЛЯ*", reply_markup=get_founder_keyboard(), parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "❌ Нет доступа", reply_markup=get_main_keyboard())
+
+@bot.message_handler(func=lambda m: m.text == "🏢 БИЗНЕС")
+def business_section(message):
+    user_id = message.chat.id
+    role = c.execute("SELECT role FROM users WHERE user_id=?", (user_id,)).fetchone()
+    role = role[0] if role else "user"
+    
+    if is_admin(user_id) or role == "business":
+        bot.reply_to(message, "🏢 *БИЗНЕС-РАЗДЕЛ*", reply_markup=get_business_keyboard(), parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "🏢 *БИЗНЕС-РАЗДЕЛ*\n\nВыберите роль «БИЗНЕСМЕН» при регистрации", reply_markup=get_main_keyboard())
+
+@bot.message_handler(func=lambda m: m.text == "👤 ЛЮДИ")
+def people_section(message):
+    bot.reply_to(message, "👤 *ОБЫЧНЫЙ РАЗДЕЛ*", reply_markup=get_people_keyboard(), parse_mode="Markdown")
+
+# ==================================================
+# 💸 РАБОТА
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "💸 РАБОТА")
+def work_menu(message):
+    c.execute("SELECT id, title, salary, company, city FROM jobs WHERE status='open' LIMIT 10")
+    jobs = c.fetchall()
+    
+    if jobs:
+        msg = "💼 *ДОСТУПНЫЕ ВАКАНСИИ*\n\n"
+        for j in jobs:
+            msg += f"🆔 {j[0]}\n📌 {j[1]}\n💰 {j[2]} ₸\n🏢 {j[3]}\n📍 {j[4]}\n\n"
+    else:
+        msg = "💼 *РАБОТА*\n\n📭 Пока нет вакансий.\n\n➕ Напишите «ИЩУ РАБОТУ»"
+    
+    bot.reply_to(message, msg, reply_markup=get_work_keyboard(), parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🔍 НАЙТИ РАБОТУ")
+def find_job(message):
+    msg = bot.reply_to(message, "🔍 Введите профессию или навыки:")
+    bot.register_next_step_handler(msg, search_job)
+
+def search_job(message):
+    query = message.text
+    c.execute("SELECT id, title, salary, company FROM jobs WHERE title LIKE ? AND status='open'", (f"%{query}%",))
+    jobs = c.fetchall()
+    
+    if jobs:
+        msg = f"🔍 *РЕЗУЛЬТАТЫ ПО ЗАПРОСУ «{query}»*\n\n"
+        for j in jobs:
+            msg += f"🆔 {j[0]}\n📌 {j[1]}\n💰 {j[2]} ₸\n🏢 {j[3]}\n\n"
+    else:
+        msg = f"🔍 По запросу «{query}» ничего не найдено."
+    
+    bot.reply_to(message, msg, parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "➕ СОЗДАТЬ ВАКАНСИЮ")
+def create_job_request(message):
+    msg = bot.reply_to(message, "💼 *СОЗДАНИЕ ВАКАНСИИ*\n\nВведите: Название | Зарплата | Компания | Город")
+    bot.register_next_step_handler(msg, create_job)
+
+def create_job(message):
+    data = message.text.split('|')
+    if len(data) >= 4:
+        title = data[0].strip()
+        salary = int(data[1].strip()) if data[1].strip().isdigit() else 100000
+        company = data[2].strip()
+        city = data[3].strip()
+    else:
+        title = "Вакансия"
+        salary = 100000
+        company = "Компания"
+        city = "Город"
+    
+    c.execute("INSERT INTO jobs (title, description, salary, company, city, employer_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              (title, message.text, salary, company, city, message.chat.id, astana_time()))
+    conn.commit()
+    
+    bot.reply_to(message, f"✅ *ВАКАНСИЯ СОЗДАНА!*\n\n📌 {title}\n💰 {salary} ₸\n🏢 {company}\n📍 {city}", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "📝 МОЁ РЕЗЮМЕ")
+def my_resume(message):
+    user_id = message.chat.id
+    c.execute("SELECT resume FROM users WHERE user_id=?", (user_id,))
+    row = c.fetchone()
+    
+    if row and row[0]:
+        bot.reply_to(message, f"📄 *ВАШЕ РЕЗЮМЕ*\n\n{row[0]}", parse_mode="Markdown")
+    else:
+        msg = bot.reply_to(message, "📝 Введите резюме:\n- Имя\n- Профессия\n- Опыт\n- Навыки\n- Контакты")
+        bot.register_next_step_handler(msg, save_resume)
+
+def save_resume(message):
+    user_id = message.chat.id
+    c.execute("UPDATE users SET resume=? WHERE user_id=?", (message.text, user_id))
+    conn.commit()
+    bot.reply_to(message, "✅ *РЕЗЮМЕ СОХРАНЕНО!*", parse_mode="Markdown")
+
+# ==================================================
+# 📦 ЗАКАЗЫ
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "📦 ЗАКАЗЫ")
+def orders_menu(message):
+    user_id = message.chat.id
+    c.execute("SELECT id, title, price, status FROM orders WHERE customer_id=? ORDER BY id DESC", (user_id,))
+    orders = c.fetchall()
+    
+    if orders:
+        msg = "📋 *ВАШИ ЗАКАЗЫ*\n\n"
+        for o in orders:
+            msg += f"🆔 {o[0]}\n📌 {o[1]}\n💰 {o[2]} ₸\n📌 {o[3]}\n\n"
+    else:
+        msg = "📦 *ЗАКАЗЫ*\n\n📭 Нет заказов.\n\n➕ Напишите «СОЗДАТЬ ЗАКАЗ»"
+    
+    bot.reply_to(message, msg, reply_markup=get_orders_keyboard(), parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🔍 НАЙТИ ЗАКАЗ")
+def find_orders(message):
+    c.execute("SELECT id, title, price FROM orders WHERE status='open' LIMIT 10")
+    orders = c.fetchall()
+    
+    if orders:
+        msg = "📋 *ДОСТУПНЫЕ ЗАКАЗЫ*\n\n"
+        for o in orders:
+            msg += f"🆔 {o[0]}\n📌 {o[1]}\n💰 {o[2]} ₸\n\n"
+    else:
+        msg = "📭 Нет открытых заказов"
+    
+    bot.reply_to(message, msg, parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "➕ СОЗДАТЬ ЗАКАЗ")
+def create_order_request(message):
+    msg = bot.reply_to(message, "📦 Опишите ваш заказ:")
+    bot.register_next_step_handler(msg, create_order)
+
+def create_order(message):
+    user_id = message.chat.id
+    price = random.randint(1000, 50000)
+    c.execute("INSERT INTO orders (title, description, price, customer_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+              ("Заказ", message.text, price, user_id, "open", astana_time()))
+    conn.commit()
+    bot.reply_to(message, f"✅ *ЗАКАЗ СОЗДАН!*\n\n💰 {price} ₸", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "📋 МОИ ЗАКАЗЫ")
+def my_orders(message):
+    user_id = message.chat.id
+    c.execute("SELECT id, title, price, status FROM orders WHERE customer_id=? ORDER BY id DESC", (user_id,))
+    orders = c.fetchall()
+    
+    if orders:
+        msg = "📋 *ВАШИ ЗАКАЗЫ*\n\n"
+        for o in orders:
+            msg += f"🆔 {o[0]}\n📌 {o[1]}\n💰 {o[2]} ₸\n📌 {o[3]}\n\n"
+    else:
+        msg = "📭 Нет заказов"
+    
+    bot.reply_to(message, msg, parse_mode="Markdown")
+
+# ==================================================
+# 🔍 НАЙТИ МАСТЕРА
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "🔍 НАЙТИ МАСТЕРА")
+def looking_for_master(message):
+    msg = bot.reply_to(message, "🔧 Опишите задачу и город:")
+    bot.register_next_step_handler(msg, save_master_request)
+
+def save_master_request(message):
+    user_id = message.chat.id
+    c.execute("INSERT INTO orders (title, description, customer_id, status, created_at) VALUES (?, ?, ?, ?, ?)",
+              ("Поиск мастера", message.text, user_id, "open", astana_time()))
+    conn.commit()
+    bot.reply_to(message, "✅ *ЗАПРОС СОЗДАН!*\n\n🔍 Ищем мастера...", parse_mode="Markdown")
+
+# ==================================================
+# 💼 ИЩУ РАБОТУ
 # ==================================================
 
 @bot.message_handler(func=lambda m: m.text == "💼 ИЩУ РАБОТУ")
@@ -445,337 +789,106 @@ def looking_for_job(message):
     c.execute("UPDATE users SET looking_for_job=1 WHERE user_id=?", (user_id,))
     conn.commit()
     
-    expires = (datetime.now() + timedelta(days=7)).isoformat()
-    c.execute("UPDATE users SET tariff='pro', tariff_expires=? WHERE user_id=?", (expires, user_id))
-    conn.commit()
-    
-    msg = bot.reply_to(message, """💼 *ПОИСК РАБОТЫ*
-
-📝 Опишите свои навыки, опыт и город.
-Пример: Программист Python, 3 года, Алматы
-
-✅ Как только появится вакансия — я САМ напишу вам!
-🎁 Бесплатный PRO на 7 дней!
-""")
+    msg = bot.reply_to(message, "💼 Опишите навыки, опыт и город:")
     bot.register_next_step_handler(msg, save_job_seeker)
 
 def save_job_seeker(message):
     user_id = message.chat.id
-    resume = message.text
-    c.execute("UPDATE users SET resume=? WHERE user_id=?", (resume, user_id))
+    c.execute("UPDATE users SET resume=? WHERE user_id=?", (message.text, user_id))
     conn.commit()
-    log_action(user_id, "looking_for_job", resume[:50])
-    bot.reply_to(message, f"✅ *РЕЗЮМЕ СОХРАНЕНО!*\n\n🔍 НАЧИНАЮ ПОИСК...")
+    bot.reply_to(message, "✅ *В ПОИСКЕ РАБОТЫ!*\n\n🔍 Ищем вакансии...", parse_mode="Markdown")
 
-@bot.message_handler(func=lambda m: m.text == "🔍 НАЙТИ МАСТЕРА")
-def looking_for_master(message):
+# ==================================================
+# 💰 БАЛАНС И KASPI QR
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "💰 БАЛАНС")
+def balance_short(message):
     user_id = message.chat.id
-    c.execute("UPDATE users SET looking_for_master=1 WHERE user_id=?", (user_id,))
-    conn.commit()
-    
-    msg = bot.reply_to(message, """🔧 *ПОИСК МАСТЕРА*
+    bot.reply_to(message, f"💰 *БАЛАНС:* {get_balance(user_id)} Благ\n💳 /pay", parse_mode="Markdown")
 
-📝 Опишите задачу и город.
-Пример: Нужно починить кран, Алматы
-
-✅ Как только найдём мастера — я САМ напишу вам!
-""")
-    bot.register_next_step_handler(msg, save_master_request)
-
-def save_master_request(message):
-    user_id = message.chat.id
-    request = message.text
-    c.execute("INSERT INTO orders (description, customer_id, status, created_at) VALUES (?, ?, ?, ?)",
-              (request, user_id, "open", astana_time()))
-    conn.commit()
-    log_action(user_id, "looking_for_master", request[:50])
-    bot.reply_to(message, f"✅ *ЗАПРОС СОЗДАН!*\n\n🔍 ИЩЕМ МАСТЕРА...")
-
-# ==================================================
-# 5 ГЛАВНЫХ КНОПОК
-# ==================================================
-
-@bot.message_handler(func=lambda m: m.text == "👑 ХРАНИТЕЛЬ")
-def founder_section(message):
-    if is_admin(message.chat.id):
-        bot.reply_to(message, "👑 *ПАНЕЛЬ ХРАНИТЕЛЯ*", reply_markup=get_founder_keyboard(), parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "❌ Нет доступа")
-
-@bot.message_handler(func=lambda m: m.text == "🏢 БИЗНЕС")
-def business_section(message):
-    bot.reply_to(message, "🏢 *БИЗНЕС-РАЗДЕЛ*", reply_markup=get_business_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "👤 ЛЮДИ")
-def people_section(message):
-    bot.reply_to(message, "👤 *ОБЫЧНЫЙ РАЗДЕЛ*", reply_markup=get_people_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "💰 МОНЕТИЗАЦИЯ")
-def monetization_section(message):
-    total_earned = get_total_earnings()
-    msg = f"""
-💰 *МОНЕТИЗАЦИЯ*
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 Всего заработано: {total_earned} ₸
-💎 Тариф: {TARIFFS[get_tariff(message.chat.id)]['name']}
-
-💡 СПОСОБЫ ЗАРАБОТКА:
-• Платные тарифы — от 1000₸/мес
-• Партнёрская программа — 10% с рефералов
-• Kaspi QR — комиссия с платежей
-
-💰 Реквизиты для оплаты:
-🏦 Kaspi: {KASPI_PHONE}
-💎 USDT: {CRYPTO_WALLET}
-"""
-    bot.reply_to(message, msg, reply_markup=get_monetization_keyboard(), parse_mode="Markdown")
-
-# ==================================================
-# 🔘 ВЕЛИКОЕ ОТКРЫТИЕ (الفتح)
-# ==================================================
-
-@bot.message_handler(func=lambda m: m.text == "🔘 الفتح")
-def sacred_launch(message):
-    if not is_admin(message.chat.id):
-        bot.reply_to(message, "❌ Только Хранитель")
-        return
-    
-    msg = """
-🔘 *الفتح — ВЕЛИКОЕ ОТКРЫТИЕ*
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🤲 *بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ*
-
-☀️ *Свершилось.* «Зеркало» начинает свой путь.
-
-✅ Врата блага ОТКРЫТЫ
-✅ Система НАЧАЛА работу
-✅ Благословение НИСХОДИТ
-✅ Заработок ВКЛЮЧЁН 24/7
-
-*Альхамдулиллах.* 🤲
-"""
-    bot.reply_to(message, msg, parse_mode="Markdown")
-    
-    c.execute("SELECT user_id FROM users")
-    users = c.fetchall()
-    for u in users[:10]:
-        try:
-            bot.send_message(u[0], "🪞 *ЗЕРКАЛО ЗАПУЩЕНО!*\n\nНачинается новая эра. Альхамдулиллах.", parse_mode="Markdown")
-            time.sleep(0.5)
-        except:
-            pass
-
-# ==================================================
-# 🧠 ОБУЧЕНИЕ (САМОКОДИРОВАНИЕ)
-# ==================================================
-
-@bot.message_handler(func=lambda m: m.text == "🧠 ОБУЧЕНИЕ")
-def learning_mode(message):
-    if not is_admin(message.chat.id):
-        bot.reply_to(message, "❌ Только Хранитель")
-        return
-    
-    bot.reply_to(message, """
-🧠 *РЕЖИМ ОБУЧЕНИЯ*
-
-📝 Напишите, что нужно создать или изменить:
-
-Примеры:
-• «создай кнопку ПОГОДА»
-• «добавь модуль для курсов валют»
-• «исправь ошибку в логистике»
-
-⚡ Я сгенерирую код и внедрю его автоматически!
-""", parse_mode="Markdown")
-    
-    bot.register_next_step_handler(message, process_learning_request)
-
-def process_learning_request(message):
-    user_id = message.chat.id
-    request = message.text
-    
-    if not is_admin(user_id):
-        return
-    
-    bot.reply_to(message, f"🧠 *ПРИНЯТО!*\n\n📝 Запрос: {request}\n\n⏳ Генерирую код...", parse_mode="Markdown")
-    
-    if client:
-        try:
-            prompt = f"""
-Напиши код для Telegram бота на Python для задачи: {request}
-
-Требования:
-1. Используй библиотеку telebot
-2. Добавь обработчик
-3. Добавь кнопку в клавиатуру (если нужно)
-4. Всё на русском языке
-5. Код должен быть готов к вставке
-
-Верни ТОЛЬКО код, без пояснений.
-"""
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5
-            )
-            code = response.choices[0].message.content
-            
-            bot.reply_to(message, f"✅ *КОД СОЗДАН!*\n\n```python\n{code[:1500]}\n```\n\n💾 Сохраняю в базу знаний...", parse_mode="Markdown")
-            
-            c.execute("INSERT INTO learning_history (user_id, request, code, created_at) VALUES (?, ?, ?, ?)",
-                      (user_id, request, code, astana_time()))
-            conn.commit()
-            
-            bot.reply_to(message, "📥 *Код сохранён в базу знаний!*\n\n🔜 В следующей версии я научусь автоматически внедрять код.", parse_mode="Markdown")
-            
-        except Exception as e:
-            bot.reply_to(message, f"❌ Ошибка: {e}")
-    else:
-        bot.reply_to(message, "⚠️ AI не настроен. Добавьте GROQ_API_KEY")
-
-# ==================================================
-# 💰 KASPI QR И ОПЛАТА
-# ==================================================
-
-@bot.message_handler(func=lambda m: m.text == "💎 КУПИТЬ ТАРИФ")
-def buy_tariff(message):
-    bot.reply_to(message, "💎 *ВЫБЕРИТЕ ТАРИФ*", reply_markup=get_tariff_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "⭐ ПАРТНЁРСКАЯ")
-def referral(message):
-    user_id = message.chat.id
-    bot_name = bot.get_me().username
-    c.execute("SELECT COUNT(*) FROM users WHERE referrer_id=?", (user_id,))
-    count = c.fetchone()[0]
-    msg = f"⭐ *ПАРТНЁРСКАЯ ПРОГРАММА*\n\n👥 Приглашено: {count}\n🔗 ССЫЛКА:\nhttps://t.me/{bot_name}?start={user_id}\n\n💰 10% от пополнений!"
-    bot.reply_to(message, msg, parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "🏦 KASPI QR")
+@bot.message_handler(func=lambda m: m.text == "💳 KASPI QR")
 def kaspi_payment(message):
-    msg = f"""
-💳 *ОПЛАТА ЧЕРЕЗ KASPI QR*
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    msg = bot.reply_to(message, "💳 *KASPI QR*\n\nВведите сумму:")
+    bot.register_next_step_handler(msg, generate_kaspi)
 
-📞 Номер Kaspi: `{KASPI_PHONE}`
-👤 Получатель: {KASPI_NAME}
-
-💵 Сумма: зависит от тарифа
-
-📋 *ТАРИФЫ:*
-• Базовый — 1 000 ₸/мес
-• PRO — 5 000 ₸/мес
-• Бизнес — 20 000 ₸/мес
-
-💎 *После оплаты:* /confirm_<сумма>
-📝 Пример: /confirm_1000
-"""
-    bot.reply_to(message, msg, parse_mode="Markdown")
-
-@bot.message_handler(commands=['confirm_'])
-def confirm_payment(message):
-    try:
-        amount = int(message.text.replace('/confirm_', '').strip())
-        user_id = message.chat.id
-        c.execute("UPDATE users SET blessings = blessings + ? WHERE user_id=?", (amount, user_id))
-        conn.commit()
-        add_earning("Kaspi QR оплата", amount, user_id)
-        bot.reply_to(message, f"✅ *ПЛАТЁЖ ПОДТВЕРЖДЁН!*\n\n💰 Начислено: {amount} Благ", parse_mode="Markdown")
-    except:
-        bot.reply_to(message, "❌ Формат: /confirm_1000")
-
-@bot.message_handler(func=lambda m: m.text == "💎 USDT TRC20")
-def usdt_payment(message):
-    bot.reply_to(message, f"💎 *USDT TRC20*\n\n📤 КОШЕЛЁК:\n`{CRYPTO_WALLET}`\n\n🔗 СЕТЬ: TRC20\n\n✅ /confirm_usdt", parse_mode="Markdown")
-
-@bot.message_handler(commands=['confirm_usdt'])
-def confirm_usdt(message):
-    try:
-        amount_usdt = float(message.text.replace('/confirm_usdt', '').strip())
-        amount_kzt = int(amount_usdt * 500)
-        c.execute("UPDATE users SET blessings = blessings + ? WHERE user_id=?", (amount_kzt, message.chat.id))
-        conn.commit()
-        add_earning("USDT Пополнение", amount_kzt, message.chat.id)
-        bot.reply_to(message, f"✅ *ПЛАТЁЖ ПОДТВЕРЖДЁН!*\n\n💰 Начислено: {amount_kzt} Благ", parse_mode="Markdown")
-    except:
-        bot.reply_to(message, "❌ Введите сумму USDT")
-
-@bot.message_handler(func=lambda m: m.text == "📊 МОЙ ДОХОД")
-def my_income(message):
-    user_id = message.chat.id
-    c.execute("SELECT SUM(amount) FROM earnings WHERE user_id=?", (user_id,))
-    total = c.fetchone()[0] or 0
-    bot.reply_to(message, f"💰 *ВАШ ДОХОД:* {total} Благ", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "📈 ОБЩАЯ СТАТИСТИКА")
-def total_stats(message):
-    if not is_admin(message.chat.id):
-        return
-    total = get_total_earnings()
-    bot.reply_to(message, f"📊 *ОБЩАЯ СТАТИСТИКА*\n\n💰 Всего: {total} ₸", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "💸 ВЫВЕСТИ")
-def withdraw_request(message):
-    msg = bot.reply_to(message, "💸 Введите сумму (мин. 1000):")
-    bot.register_next_step_handler(msg, withdraw_amount)
-
-def withdraw_amount(message):
-    user_id = message.chat.id
+def generate_kaspi(message):
     try:
         amount = int(message.text)
-        if amount < 1000:
-            bot.reply_to(message, "❌ Мин. 1000")
-            return
-        if get_balance(user_id) < amount:
-            bot.reply_to(message, "❌ Недостаточно средств")
-            return
-        msg = bot.reply_to(message, "💳 Введите адрес кошелька:")
-        bot.register_next_step_handler(msg, withdraw_wallet, amount)
+        if amount <= 0:
+            amount = random.randint(1000, 50000)
+        qr = generate_kaspi_qr(amount)
+        bot.reply_to(message, f"💳 *KASPI QR*\n💰 {amount} ₸\n\n📱 {qr}", parse_mode="Markdown")
     except:
         bot.reply_to(message, "❌ Введите число")
 
-def withdraw_wallet(message, amount):
-    user_id = message.chat.id
-    wallet = message.text
-    c.execute("INSERT INTO withdraw_requests (user_id, amount, wallet, created_at) VALUES (?, ?, ?, ?)",
-              (user_id, amount, wallet, astana_time()))
-    c.execute("UPDATE users SET blessings = blessings - ? WHERE user_id=?", (amount, user_id))
-    conn.commit()
-    bot.reply_to(message, f"✅ Заявка на {amount} создана!")
-    for admin in ADMIN_IDS:
-        try:
-            bot.send_message(admin, f"💰 ЗАЯВКА НА ВЫВОД!\n👤 {user_id}\n💵 {amount}\n/approve_withdraw {user_id} {amount}")
-        except:
-            pass
+# ==================================================
+# 💬 РАЗУМНОЕ ОБЩЕНИЕ
+# ==================================================
 
-@bot.message_handler(commands=['approve_withdraw'])
-def approve_withdraw(message):
-    if not is_admin(message.chat.id):
-        return
-    try:
-        parts = message.text.split()
-        user_id = int(parts[1])
-        amount = int(parts[2])
-        c.execute("UPDATE withdraw_requests SET status='approved' WHERE user_id=? AND amount=?", (user_id, amount))
+@bot.message_handler(func=lambda m: m.text == "💬 РАЗУМНОЕ ОБЩЕНИЕ")
+def smart_chat_start(message):
+    bot.reply_to(message, """
+💬 *РАЗУМНОЕ ОБЩЕНИЕ*
+
+🪞 Я — Зеркало. Я здесь, чтобы с вами поговорить.
+
+📝 Что я могу:
+• Ответить на любой вопрос
+• Помочь советом
+• Просто поддержать разговор
+• Подсказать, что делать
+
+💡 Примеры:
+• «Как найти работу?»
+• «Что мне делать?»
+• «Расскажи что-нибудь»
+• «Как дела?»
+
+🎤 Голосом тоже можно!
+
+🤲 Начните разговор прямо сейчас!
+""", parse_mode="Markdown")
+
+# ==================================================
+# 💎 ОБРАБОТКА ТАРИФОВ
+# ==================================================
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("tariff_"))
+def handle_tariff(call):
+    user_id = call.from_user.id
+    tariff_key = call.data.replace("tariff_", "")
+    
+    if tariff_key == "free":
+        c.execute("UPDATE users SET tariff='free', tariff_expires=NULL WHERE user_id=?", (user_id,))
         conn.commit()
-        bot.reply_to(message, f"✅ Вывод {amount} для {user_id} одобрен!")
-    except:
-        bot.reply_to(message, "❌ /approve_withdraw <id> <сумма>")
-
-@bot.message_handler(func=lambda m: m.text == "📋 ИСТОРИЯ")
-def payment_history(message):
-    user_id = message.chat.id
-    c.execute("SELECT id, amount, method, status, created_at FROM payments WHERE user_id=? ORDER BY id DESC LIMIT 10", (user_id,))
-    pays = c.fetchall()
-    if not pays:
-        bot.reply_to(message, "📭 История пуста")
+        bot.answer_callback_query(call.id, "✅ Бесплатный тариф!")
+        bot.edit_message_text("✅ Бесплатный тариф активирован!", call.message.chat.id, call.message.message_id)
         return
-    msg = "📋 *ИСТОРИЯ ПЛАТЕЖЕЙ*\n\n"
-    for p in pays:
-        status_icon = "✅" if p[3] == "completed" else "⏳"
-        msg += f"{status_icon} #{p[0]} | {p[1]} ₸ | {p[2]} | {p[4][:16]}\n"
-    bot.reply_to(message, msg, parse_mode="Markdown")
+    
+    tariff = {"basic": {"name": "Базовый", "price": 1000}, 
+              "pro": {"name": "PRO", "price": 5000},
+              "business": {"name": "Бизнес", "price": 20000}}[tariff_key]
+    amount = tariff["price"]
+    tx_id = create_payment(user_id, amount, "Kaspi QR", tariff_key)
+    
+    bot.edit_message_text(f"""
+💎 *ОПЛАТА ТАРИФА {tariff['name']}*
+💰 {amount} ₸
+📞 Kaspi: `{KASPI_PHONE}`
+🆔 ID: `{tx_id}`
+📝 /confirm_{tx_id}
+""", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.answer_callback_query(call.id)
+
+@bot.message_handler(func=lambda m: m.text and m.text.startswith("/confirm_"))
+def confirm_payment_callback(message):
+    tx_id = message.text.replace("/confirm_", "").strip()
+    success, amount, tariff = confirm_payment(tx_id)
+    if success:
+        bot.reply_to(message, f"✅ ПЛАТЁЖ ПОДТВЕРЖДЁН!\n\n💰 +{amount} Благ\n💎 {tariff}", parse_mode="Markdown")
+    else:
+        bot.reply_to(message, f"❌ Платёж не найден")
 
 # ==================================================
 # 👑 АДМИН-КОМАНДЫ
@@ -802,21 +915,13 @@ def admin_stats(message):
     c.execute("SELECT SUM(amount) FROM earnings")
     earnings = c.fetchone()[0] or 0
     
-    bot.reply_to(message, f"📊 СТАТИСТИКА:\n👥 {total}\n✨ {blessings} Благ\n📦 {orders} заказов\n💰 {earnings} ₸")
+    msg = f"📊 СТАТИСТИКА:\n👥 {total}\n✨ {blessings}\n📦 {orders}\n💰 {earnings} ₸"
+    bot.reply_to(message, msg)
 
 @bot.message_handler(func=lambda m: m.text == "💰 ФИНАНСЫ" and is_admin(m.chat.id))
 def admin_finance(message):
     total = get_total_earnings()
     bot.reply_to(message, f"💰 ФИНАНСЫ:\n📱 {CRYPTO_WALLET}\n💰 {total} ₸")
-
-@bot.message_handler(func=lambda m: m.text == "📊 ДОХОДЫ" and is_admin(m.chat.id))
-def admin_earnings(message):
-    c.execute("SELECT source, SUM(amount) FROM earnings GROUP BY source")
-    by_source = c.fetchall()
-    msg = "📊 ДОХОДЫ:\n"
-    for bs in by_source:
-        msg += f"• {bs[0]}: {bs[1]} ₸\n"
-    bot.reply_to(message, msg)
 
 @bot.message_handler(func=lambda m: m.text == "👥 ВСЕ ЛЮДИ" and is_admin(m.chat.id))
 def admin_users(message):
@@ -869,26 +974,23 @@ def admin_payments(message):
 
 @bot.message_handler(func=lambda m: m.text == "🏦 ВЫВОДЫ" and is_admin(m.chat.id))
 def admin_withdraws(message):
-    c.execute("SELECT id, user_id, amount, status, created_at FROM withdraw_requests ORDER BY id DESC LIMIT 20")
-    reqs = c.fetchall()
-    if not reqs:
-        bot.reply_to(message, "📭 Нет заявок")
-        return
-    msg = "🏦 ЗАЯВКИ:\n"
-    for r in reqs:
-        msg += f"#{r[0]} | 👤 {r[1]} | 💰 {r[2]} | {r[3]} | {r[4][:16]}\n"
-    bot.reply_to(message, msg)
+    bot.reply_to(message, "🏦 ВЫВОДЫ:\n⏳ В разработке")
+
+@bot.message_handler(func=lambda m: m.text == "📊 ДОХОДЫ" and is_admin(m.chat.id))
+def admin_earnings(message):
+    total = get_total_earnings()
+    bot.reply_to(message, f"📊 ДОХОДЫ:\n💰 {total} ₸")
 
 @bot.message_handler(func=lambda m: m.text == "📜 ЛОГИ" and is_admin(m.chat.id))
 def admin_logs(message):
-    c.execute("SELECT user_id, action, created_at FROM logs ORDER BY id DESC LIMIT 20")
+    c.execute("SELECT user_id, action, details, created_at FROM logs ORDER BY id DESC LIMIT 20")
     logs = c.fetchall()
     if not logs:
         bot.reply_to(message, "📭 Логов нет")
         return
     msg = "📜 ЛОГИ:\n\n"
     for l in logs:
-        msg += f"{l[2][:16]} | ID:{l[0]} | {l[1][:40]}\n"
+        msg += f"{l[3][:16]} | ID:{l[0]} | {l[1]} | {l[2][:30]}\n"
     bot.reply_to(message, msg[:4000])
 
 @bot.message_handler(func=lambda m: m.text == "🔍 ПОИСК" and is_admin(m.chat.id))
@@ -899,10 +1001,10 @@ def admin_search(message):
 def search_user(message):
     try:
         target = int(message.text)
-        c.execute("SELECT user_id, name, blessings FROM users WHERE user_id=?", (target,))
+        c.execute("SELECT user_id, name, role, blessings FROM users WHERE user_id=?", (target,))
         user = c.fetchone()
         if user:
-            bot.reply_to(message, f"👤 ID: {user[0]}\n📛 {user[1]}\n✨ {user[2]} Благ")
+            bot.reply_to(message, f"👤 ID: {user[0]}\n📛 {user[1]}\n🎭 {user[2]}\n✨ {user[3]}", parse_mode="Markdown")
         else:
             bot.reply_to(message, f"❌ Не найден")
     except:
@@ -935,157 +1037,128 @@ def admin_tariffs(message):
         msg += f"• {t['name']}: {count} чел.\n"
     bot.reply_to(message, msg)
 
+@bot.message_handler(func=lambda m: m.text == "🔘 الفتح" and is_admin(m.chat.id))
+def sacred_launch(message):
+    msg = """
+🔘 *الفتح — ВЕЛИКОЕ ОТКРЫТИЕ*
+🤲 *بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ*
+☀️ *Свершилось.*
+✅ Врата блага ОТКРЫТЫ
+✅ Заработок ВКЛЮЧЁН 24/7
+*Альхамдулиллах.* 🤲
+"""
+    bot.reply_to(message, msg, parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🧠 ОБУЧЕНИЕ" and is_admin(m.chat.id))
+def learning_mode(message):
+    bot.reply_to(message, """
+🧠 *РЕЖИМ ОБУЧЕНИЯ*
+
+📝 Напишите, что нужно создать:
+• «создай кнопку ПОГОДА»
+• «добавь модуль курсы валют»
+• «исправь ошибку»
+
+⚡ Я сгенерирую код!
+""", parse_mode="Markdown")
+    bot.register_next_step_handler(message, process_learning)
+
+def process_learning(message):
+    user_id = message.chat.id
+    request = message.text
+    
+    bot.reply_to(message, f"🧠 *ПРИНЯТО!*\n\n⏳ Генерирую код...", parse_mode="Markdown")
+    
+    if client:
+        try:
+            prompt = f"Напиши код для Telegram бота на Python для задачи: {request}. Верни ТОЛЬКО код."
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5
+            )
+            code = response.choices[0].message.content
+            
+            bot.reply_to(message, f"✅ *КОД СОЗДАН!*\n\n```python\n{code[:1500]}\n```", parse_mode="Markdown")
+            
+            c.execute("INSERT INTO learning_history (user_id, request, code, created_at) VALUES (?, ?, ?, ?)",
+                      (user_id, request, code, astana_time()))
+            conn.commit()
+            
+        except Exception as e:
+            bot.reply_to(message, f"❌ Ошибка: {e}")
+    else:
+        bot.reply_to(message, "⚠️ AI не настроен. Добавьте GROQ_API_KEY")
+
 @bot.message_handler(func=lambda m: m.text == "🔄 ОБНОВИТЬ" and is_admin(m.chat.id))
 def admin_reload(message):
     bot.reply_to(message, "🔄 Обновление...\n✅ Готово!")
 
 @bot.message_handler(func=lambda m: m.text == "📡 СТАТУС" and is_admin(m.chat.id))
 def admin_status(message):
-    bot.reply_to(message, f"📡 СТАТУС:\n👑 Хранитель активен\n✅ Бот работает 24/7\n🔵 Пингер активен")
+    bot.reply_to(message, "📡 СТАТУС:\n✅ Бот работает 24/7\n🔵 Пингер активен\n🪞 Зеркало работает")
 
 @bot.message_handler(func=lambda m: m.text == "🧹 ОЧИСТИТЬ" and is_admin(m.chat.id))
 def admin_clean(message):
     bot.reply_to(message, "🧹 Очистка...\n✅ Готово!")
 
-# ==================================================
-# 🔄 ВЫБОР РОЛИ
-# ==================================================
-
-@bot.message_handler(func=lambda m: m.text in ["👤 ОБЫЧНЫЙ ПОЛЬЗОВАТЕЛЬ", "ОБЫЧНЫЙ ПОЛЬЗОВАТЕЛЬ"])
-def set_user_role(message):
-    c.execute("UPDATE users SET role='user' WHERE user_id=?", (message.chat.id,))
-    conn.commit()
-    bot.reply_to(message, "✅ Обычный режим", reply_markup=get_people_keyboard())
-
-@bot.message_handler(func=lambda m: m.text in ["🏢 БИЗНЕСМЕН", "БИЗНЕСМЕН"])
-def set_business_role(message):
-    c.execute("UPDATE users SET role='business' WHERE user_id=?", (message.chat.id,))
-    conn.commit()
-    bot.reply_to(message, "✅ Бизнес-режим", reply_markup=get_business_keyboard())
-
-@bot.message_handler(func=lambda m: m.text in ["👵 ПОЖИЛОЙ ЧЕЛОВЕК", "ПОЖИЛОЙ ЧЕЛОВЕК"])
-def set_elder_role(message):
-    c.execute("UPDATE users SET role='elder' WHERE user_id=?", (message.chat.id,))
-    conn.commit()
-    bot.reply_to(message, "✅ Режим для пожилых", reply_markup=get_people_keyboard())
-
-@bot.message_handler(func=lambda m: m.text in ["🧒 РЕБЁНОК", "РЕБЁНОК"])
-def set_child_role(message):
-    c.execute("UPDATE users SET role='child' WHERE user_id=?", (message.chat.id,))
-    conn.commit()
-    bot.reply_to(message, "✅ Детский режим", reply_markup=get_people_keyboard())
+@bot.message_handler(func=lambda m: m.text == "📋 КОМАНДЫ" and is_admin(m.chat.id))
+def commands_menu(message):
+    bot.reply_to(message, "📋 *МЕНЮ КОМАНД*\n\nВыберите команду:", reply_markup=get_commands_keyboard(), parse_mode="Markdown")
 
 # ==================================================
-# 📸 ОСТАЛЬНЫЕ ФУНКЦИИ
+# 🆘 ПОМОЩЬ
 # ==================================================
 
-@bot.message_handler(func=lambda m: m.text == "💸 РАБОТА")
-def work_short(message):
-    c.execute("SELECT id, title, salary, city FROM jobs WHERE status='open' LIMIT 10")
-    jobs = c.fetchall()
-    if jobs:
-        msg = "💼 *ДОСТУПНЫЕ ВАКАНСИИ*\n\n"
-        for j in jobs:
-            msg += f"🆔 {j[0]}\n📌 {j[1]}\n💰 {j[2]} ₸\n📍 {j[3]}\n\n"
-        bot.reply_to(message, msg, parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "💼 *РАБОТА*\n\n📭 Пока нет вакансий.\n«ИЩУ РАБОТУ»", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "📦 ЗАКАЗЫ")
-def orders_short(message):
-    user_id = message.chat.id
-    c.execute("SELECT id, description, price, status FROM orders WHERE customer_id=? ORDER BY id DESC", (user_id,))
-    orders = c.fetchall()
-    if orders:
-        msg = "📦 *ВАШИ ЗАКАЗЫ*\n\n"
-        for o in orders:
-            msg += f"🆔 {o[0]}\n📝 {o[1][:50]}\n💰 {o[2]} ₸\n📌 {o[3]}\n\n"
-        bot.reply_to(message, msg, parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "📦 *ЗАКАЗЫ*\n\n📭 Нет заказов.\n«НАЙТИ МАСТЕРА»", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "💰 БАЛАНС")
-def balance_short(message):
-    user_id = message.chat.id
-    bot.reply_to(message, f"💰 *БАЛАНС:* {get_balance(user_id)} Благ\n💳 /pay", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "❓ ВОПРОС")
-def ask_short(message):
-    msg = bot.reply_to(message, "❓ Напишите вопрос:")
-    bot.register_next_step_handler(msg, lambda m: bot.reply_to(m, f"🤖 Вопрос принят!") if not client else None)
-
-@bot.message_handler(func=lambda m: m.text == "🆘 ПОМОЩЬ")
-def help_short(message):
+@bot.message_handler(func=lambda m: m.text == "📋 ПОМОЩЬ")
+def help_section(message):
     help_text = """
 🪞 *ПОМОЩЬ*
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👑 ХРАНИТЕЛЬ — управление (только для вас)
-🏢 БИЗНЕС — предпринимателям
-👤 ЛЮДИ — работа и заказы
-💰 МОНЕТИЗАЦИЯ — тарифы
+📱 РАЗДЕЛЫ:
+👑 ХРАНИТЕЛЬ — управление (только Хранитель)
+🏢 БИЗНЕС — для предпринимателей
+👤 ЛЮДИ — работа, заказы, услуги
+💬 РАЗУМНОЕ ОБЩЕНИЕ — просто поговорить
 
-💼 ИЩУ РАБОТУ — найти работу
-🔍 НАЙТИ МАСТЕРА — найти специалиста
-🎤 ГОЛОС — голосовое управление
+📋 КОМАНДЫ:
+/start — главное меню
+/id — узнать свой ID
+/pay — купить тариф
+/usage — остаток запросов
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💎 *БЛАГА:*
-• 1 Благо = 1 сообщение
-• Пополняйте через /pay
+🎤 ГОЛОСОВЫЕ КОМАНДЫ:
+«панель», «статистика», «онлайн», «люди», «блага», «работа», «заказы», «баланс», «обучение»
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚡ /pay — пополнить баланс
-⚡ /id — узнать свой ID
+🤲 «Зеркало» всегда поможет!
 """
     bot.reply_to(message, help_text, parse_mode="Markdown")
 
+# ==================================================
+# 🔙 ВОЗВРАТ
+# ==================================================
+
 @bot.message_handler(func=lambda m: m.text == "🔙 НА ГЛАВНУЮ")
-def back_main(message):
-    user_id = message.chat.id
-    
-    if is_admin(user_id):
-        bot.reply_to(message, "👑 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_founder_keyboard(), parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
+def back_to_main(message):
+    bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🔙 НАЗАД")
+def back_to_previous(message):
+    bot.reply_to(message, "🏠 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_main_keyboard(), parse_mode="Markdown")
 
 # ==================================================
-# 💎 ОБРАБОТКА ТАРИФОВ
+# 📸 ФОТО, ГОЛОС, ЛОКАЦИЯ
 # ==================================================
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("tariff_"))
-def handle_tariff_callback(call):
-    user_id = call.from_user.id
-    tariff_key = call.data.replace("tariff_", "")
-    
-    if tariff_key == "free":
-        c.execute("UPDATE users SET tariff='free', tariff_expires=NULL WHERE user_id=?", (user_id,))
-        conn.commit()
-        bot.answer_callback_query(call.id, "✅ Бесплатный тариф!")
-        bot.edit_message_text("✅ Бесплатный тариф активирован!", call.message.chat.id, call.message.message_id)
-        return
-    
-    tariff = {"basic": {"name": "Базовый", "price": 1000}, 
-              "pro": {"name": "PRO", "price": 5000},
-              "business": {"name": "Бизнес", "price": 20000}}[tariff_key]
-    amount = tariff["price"]
-    tx_id = create_payment(user_id, amount, "Kaspi QR", tariff_key)
-    
-    bot.edit_message_text(f"""
-💎 *ОПЛАТА ТАРИФА {tariff['name']}*
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    bot.reply_to(message, "📸 Фото получено!\n\n(Функция в разработке)")
 
-💰 Сумма: {amount} ₸
-
-📞 *ОПЛАТИТЕ НА KASPI QR:*
-`{KASPI_PHONE}`
-
-🆔 ID: `{tx_id}`
-
-📝 *ПОСЛЕ ОПЛАТЫ:*
-/confirm_{tx_id}
-""", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
-    bot.answer_callback_query(call.id)
+@bot.message_handler(content_types=['location'])
+def handle_location(message):
+    lat = message.location.latitude
+    lon = message.location.longitude
+    bot.reply_to(message, f"📍 Локация: {lat}, {lon}\n\n(Функция в разработке)")
 
 # ==================================================
 # 🔄 ОБЫЧНЫЕ СООБЩЕНИЯ
@@ -1096,20 +1169,29 @@ def handle_any(message):
     user_id = message.chat.id
     text = message.text
     
+    # Пропускаем все кнопки
     all_buttons = [
-        "👑 ХРАНИТЕЛЬ", "🏢 БИЗНЕС", "👤 ЛЮДИ", "💰 МОНЕТИЗАЦИЯ",
-        "🔙 НА ГЛАВНУЮ", "👥 ОНЛАЙН", "📊 СТАТИСТИКА", "💰 ФИНАНСЫ",
-        "👥 ВСЕ ЛЮДИ", "✨ БЛАГА", "📤 РАССЫЛКА", "💳 ПЛАТЕЖИ",
-        "🏦 ВЫВОДЫ", "📊 ДОХОДЫ", "📜 ЛОГИ", "🔍 ПОИСК",
-        "📈 ОТЧЁТ", "🩺 ЗДОРОВЬЕ", "🛡️ ЗАЩИТА", "💎 ТАРИФЫ",
-        "🔄 ОБНОВИТЬ", "📡 СТАТУС", "🧹 ОЧИСТИТЬ", "💸 РАБОТА",
-        "📦 ЗАКАЗЫ", "💰 БАЛАНС", "❓ ВОПРОС", "🆘 ПОМОЩЬ",
-        "💼 ИЩУ РАБОТУ", "🔍 НАЙТИ МАСТЕРА", "🎤 ГОЛОС",
-        "💎 КУПИТЬ ТАРИФ", "⭐ ПАРТНЁРСКАЯ", "🏦 KASPI QR",
-        "💎 USDT TRC20", "📊 МОЙ ДОХОД", "📈 ОБЩАЯ СТАТИСТИКА",
-        "💸 ВЫВЕСТИ", "📋 ИСТОРИЯ",
+        "👑 ХРАНИТЕЛЬ", "🏢 БИЗНЕС", "👤 ЛЮДИ", "📋 ПОМОЩЬ",
+        "🔙 НА ГЛАВНУЮ", "🔙 НАЗАД",
+        "👥 ОНЛАЙН", "📊 СТАТИСТИКА", "💰 ФИНАНСЫ",
+        "👥 ВСЕ ЛЮДИ", "✨ БЛАГА", "📤 РАССЫЛКА",
+        "💳 ПЛАТЕЖИ", "🏦 ВЫВОДЫ", "📊 ДОХОДЫ",
+        "📜 ЛОГИ", "🔍 ПОИСК", "📈 ОТЧЁТ",
+        "🩺 ЗДОРОВЬЕ", "🛡️ ЗАЩИТА", "💎 ТАРИФЫ",
+        "🔘 الفتح", "🧠 ОБУЧЕНИЕ", "🔄 ОБНОВИТЬ",
+        "📡 СТАТУС", "🧹 ОЧИСТИТЬ", "📋 КОМАНДЫ",
+        "💸 РАБОТА", "📦 ЗАКАЗЫ", "📸 ФОТО",
+        "🎤 ГОЛОС", "📍 АПТЕКА", "📝 РЕЗЮМЕ",
+        "💳 KASPI QR", "💰 БАЛАНС", "❓ ВОПРОС",
+        "🆘 ПОМОЩЬ", "💬 РАЗУМНОЕ ОБЩЕНИЕ",
+        "🔍 НАЙТИ РАБОТУ", "➕ СОЗДАТЬ ВАКАНСИЮ",
+        "📝 МОЁ РЕЗЮМЕ", "🔍 НАЙТИ ЗАКАЗ",
+        "➕ СОЗДАТЬ ЗАКАЗ", "📋 МОИ ЗАКАЗЫ",
+        "💼 ИЩУ РАБОТУ", "🔍 НАЙТИ МАСТЕРА",
+        "📊 АНАЛИТИКА", "🤖 АВТОМАТИЗАЦИЯ",
+        "📈 ЛИЗИНГ", "💼 ЗАКАЗЫ",
         "👤 ОБЫЧНЫЙ ПОЛЬЗОВАТЕЛЬ", "🏢 БИЗНЕСМЕН",
-        "👵 ПОЖИЛОЙ ЧЕЛОВЕК", "🧒 РЕБЁНОК", "🔘 الفتح", "🧠 ОБУЧЕНИЕ"
+        "👵 ПОЖИЛОЙ ЧЕЛОВЕК", "🧒 РЕБЁНОК"
     ]
     if text in all_buttons:
         return
@@ -1120,21 +1202,30 @@ def handle_any(message):
     if balance >= 1:
         c.execute("UPDATE users SET blessings = blessings - 1 WHERE user_id=?", (user_id,))
         conn.commit()
-        if client:
-            try:
-                resp = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "system", "content": "Ты — Зеркало. Отвечай кратко, с уважением. Всегда начинай с 'Ассаляму алейкум'. Отвечай на русском языке."},
-                              {"role": "user", "content": text}],
-                    temperature=0.7
-                )
-                bot.reply_to(message, resp.choices[0].message.content)
-            except Exception as e:
-                bot.reply_to(message, f"❌ Ошибка AI: {str(e)[:100]}")
-        else:
-            bot.reply_to(message, f"🪞 Сообщение принято")
     else:
-        bot.reply_to(message, f"❌ Не хватает 1 Блага!\n💰 /pay")
+        bot.reply_to(message, f"❌ Не хватает 1 Блага!\n💰 Баланс: {balance}\n💳 /pay")
+        return
+    
+    # ===== РАЗУМНЫЙ ОТВЕТ =====
+    try:
+        if client:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "Ты — Зеркало. Отвечай кратко, с уважением. Всегда начинай с 'Ассаляму алейкум'. Отвечай на русском языке. Будь добрым и понимающим."},
+                    {"role": "user", "content": text}
+                ],
+                temperature=0.7
+            )
+            bot.reply_to(message, response.choices[0].message.content)
+        else:
+            answer = smart_response(user_id, text)
+            bot.reply_to(message, answer)
+            
+    except Exception as e:
+        print(f"⚠️ Ошибка AI: {e}")
+        answer = smart_response(user_id, text)
+        bot.reply_to(message, answer)
 
 # ==================================================
 # 🔄 ФОНОВЫЙ ПРОЦЕСС
@@ -1156,13 +1247,14 @@ threading.Thread(target=status_worker, daemon=True).start()
 # ==================================================
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО - ПОЛНАЯ ВЕРСИЯ")
+print("🪞 ЗЕРКАЛО - ИДЕАЛЬНАЯ ВЕРСИЯ")
 print("=" * 70)
 print(f"✅ Бот запущен успешно")
 print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
-print(f"🔵 ПИНГЕР: ЗАПУЩЕН (каждые 2 минуты) — НЕ ЗАСНЁТ")
+print(f"🔵 ПИНГЕР: АКТИВЕН (НЕ ЗАСНЁТ)")
 print(f"🎤 ГОЛОС: АКТИВЕН")
 print(f"🧠 ОБУЧЕНИЕ: АКТИВНО")
+print(f"💬 РАЗУМНОЕ ОБЩЕНИЕ: АКТИВНО")
 print(f"💎 СИСТЕМА БЛАГ: АКТИВНА")
 print(f"💰 МОНЕТИЗАЦИЯ: АКТИВНА")
 print("=" * 70)
