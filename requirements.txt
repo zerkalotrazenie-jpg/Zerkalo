@@ -2,3 +2,5 @@ pytelegrambotapi
 groq
 flask
 requests
+SpeechRecognition
+pydub
