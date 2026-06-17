@@ -97,6 +97,7 @@
             font-size: 12px;
             color: #b0b0c0;
             text-decoration: none;
+            display: block;
         }
         .menu-item:hover {
             border-color: #f0c27f;
@@ -148,7 +149,6 @@
     </div>
 
     <div class="main">
-        <!-- Приветствие -->
         <div class="card">
             <div class="card-title">🔄 Первое Отражение</div>
             <div class="card-desc">
@@ -157,84 +157,61 @@
             </div>
         </div>
 
-        <!-- Доступные задания -->
         <div class="card" id="ordersCard">
             <div class="card-title">📋 Доступные Задания</div>
-            <div class="card-desc" id="ordersList">
-                Загрузка...
-            </div>
+            <div class="card-desc" id="ordersList">Загрузка...</div>
         </div>
 
-        <!-- Меню -->
         <div class="menu" id="mainMenu">
-            <a class="menu-item" href="#" data-action="find">
-                <span class="icon">🔍</span> Найти
-            </a>
-            <a class="menu-item" href="#" data-action="work">
-                <span class="icon">💼</span> Работа
-            </a>
-            <a class="menu-item" href="#" data-action="help">
-                <span class="icon">🆘</span> Помощь
-            </a>
-            <a class="menu-item" href="#" data-action="wallet">
-                <span class="icon">💰</span> Кошелёк
-            </a>
-            <a class="menu-item" href="#" data-action="profile">
-                <span class="icon">👤</span> Профиль
-            </a>
+            <a class="menu-item" href="#" data-action="find"><span class="icon">🔍</span> Найти</a>
+            <a class="menu-item" href="#" data-action="work"><span class="icon">💼</span> Работа</a>
+            <a class="menu-item" href="#" data-action="help"><span class="icon">🆘</span> Помощь</a>
+            <a class="menu-item" href="#" data-action="wallet"><span class="icon">💰</span> Кошелёк</a>
+            <a class="menu-item" href="#" data-action="profile"><span class="icon">👤</span> Профиль</a>
             <a class="menu-item admin" href="#" data-action="admin" id="adminBtn" style="display:none;">
                 <span class="icon">👑</span> Управление
             </a>
         </div>
 
-        <!-- Админ-меню (скрыто для обычных) -->
         <div class="menu" id="adminMenu" style="display:none; margin-top:10px; border-top:1px solid #2a2a3e; padding-top:14px;">
-            <a class="menu-item admin" href="#" data-action="users">
-                <span class="icon">👥</span> Пользователи
-            </a>
-            <a class="menu-item admin" href="#" data-action="finance">
-                <span class="icon">💰</span> Финансы
-            </a>
-            <a class="menu-item admin" href="#" data-action="logs">
-                <span class="icon">📜</span> Логи
-            </a>
-            <a class="menu-item admin" href="#" data-action="settings">
-                <span class="icon">⚙️</span> Настройки
-            </a>
+            <a class="menu-item admin" href="#" data-action="users"><span class="icon">👥</span> Пользователи</a>
+            <a class="menu-item admin" href="#" data-action="finance"><span class="icon">💰</span> Финансы</a>
+            <a class="menu-item admin" href="#" data-action="logs"><span class="icon">📜</span> Логи</a>
+            <a class="menu-item admin" href="#" data-action="settings"><span class="icon">⚙️</span> Настройки</a>
         </div>
     </div>
 
-    <div class="footer">
-        🪞 Аль-Ми'ра · Свет и Отражение · Амин
-    </div>
+    <div class="footer">🪞 Аль-Ми'ра · Свет и Отражение · Амин</div>
 
     <script>
-        // ==========================================
-        // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
-        // ==========================================
-        
-        let userData = null;
+        let userId = null;
         let isAdmin = false;
-        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
 
-        // ==========================================
-        // ЗАГРУЗКА ДАННЫХ
-        // ==========================================
+        // Получаем ID из Telegram
+        try {
+            const tg = window.Telegram?.WebApp;
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                userId = tg.initDataUnsafe.user.id;
+            }
+        } catch(e) {}
+
+        // Если ID нет — используем ID Хранителя (для теста)
+        if (!userId) {
+            userId = 5409420822;
+            console.log('🪞 Тестовый режим: Хранитель');
+        }
 
         async function loadUser() {
-            if (!userId) {
-                document.getElementById('roleBadge').textContent = 'Гость';
-                return;
-            }
             try {
                 const res = await fetch(`/api/user/${userId}`);
                 const data = await res.json();
                 if (data.error) return;
-                userData = data;
-                isAdmin = data.role === 'founder';
+                
+                isAdmin = data.is_admin || data.role === 'founder';
                 document.getElementById('balance').textContent = '✦ ' + data.blessings;
                 document.getElementById('roleBadge').textContent = isAdmin ? 'Хранитель' : 'Пользователь';
                 document.getElementById('roleBadge').className = 'role-badge ' + (isAdmin ? 'founder' : 'user');
+                
                 if (isAdmin) {
                     document.getElementById('adminBtn').style.display = 'block';
                     document.getElementById('adminMenu').style.display = 'grid';
@@ -264,38 +241,29 @@
             }
         }
 
-        // ==========================================
-        // ОБРАБОТКА КЛИКОВ
-        // ==========================================
-
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', function(e) {
                 e.preventDefault();
                 const action = this.dataset.action;
-                
-                // Отправляем в Telegram
-                if (window.Telegram?.WebApp) {
-                    Telegram.WebApp.sendData(action);
-                    Telegram.WebApp.close();
-                } else {
-                    // Для теста
-                    alert('🪞 Действие: ' + action + '\n(В Telegram откроется нужный раздел)');
+                try {
+                    if (window.Telegram?.WebApp) {
+                        Telegram.WebApp.sendData(action);
+                        Telegram.WebApp.close();
+                    } else {
+                        alert('🪞 Действие: ' + action);
+                    }
+                } catch(e) {
+                    alert('🪞 Действие: ' + action);
                 }
             });
         });
 
-        // ==========================================
-        // ЗАПУСК
-        // ==========================================
-
         loadUser();
         loadOrders();
-
-        // Обновляем каждые 30 секунд
         setInterval(loadOrders, 30000);
 
         console.log('🪞 Зеркало загружено!');
-        console.log('👤 Пользователь:', userId);
+        console.log('👤 ID:', userId);
         console.log('👑 Админ:', isAdmin);
     </script>
 </body>
