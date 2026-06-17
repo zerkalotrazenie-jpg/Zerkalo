@@ -7,62 +7,64 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0a0a0f;
+            background: #0a0a12;
             color: #e0e0e0;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
         }
         .header {
-            width: 100%;
-            padding: 20px;
             background: linear-gradient(135deg, #0d0d1a, #1a1a2e);
+            padding: 16px 20px;
             border-bottom: 1px solid #2a2a3e;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         .header h1 {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
+            font-size: 20px;
             background: linear-gradient(90deg, #f0c27f, #fc5c7d);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            font-weight: 300;
+            letter-spacing: 1px;
         }
         .header .balance {
-            background: rgba(255,255,255,0.05);
-            padding: 8px 16px;
+            background: rgba(255,255,255,0.06);
+            padding: 6px 14px;
             border-radius: 20px;
             font-size: 14px;
             border: 1px solid #2a2a3e;
+            color: #f0c27f;
         }
         .main {
-            width: 100%;
-            max-width: 480px;
-            padding: 20px;
             flex: 1;
+            padding: 16px;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
         }
         .card {
             background: rgba(255,255,255,0.03);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-            border: 1px solid #1e1e2e;
-            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 14px;
+            border: 1px solid #1a1a2e;
             transition: all 0.3s;
         }
         .card:hover {
             border-color: #3a3a5e;
-            background: rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.05);
         }
         .card-title {
             font-size: 16px;
             font-weight: 600;
-            margin-bottom: 8px;
             color: #f0c27f;
+            margin-bottom: 6px;
         }
         .card-desc {
             font-size: 14px;
@@ -71,47 +73,68 @@
         }
         .card-badge {
             display: inline-block;
-            background: rgba(240, 194, 127, 0.15);
+            background: rgba(240,194,127,0.12);
             color: #f0c27f;
             padding: 2px 12px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: 11px;
             margin-top: 8px;
         }
         .menu {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 12px;
-            margin-top: 20px;
+            gap: 10px;
+            margin-top: 10px;
         }
         .menu-item {
             background: rgba(255,255,255,0.03);
-            border: 1px solid #1e1e2e;
+            border: 1px solid #1a1a2e;
             border-radius: 12px;
-            padding: 16px 8px;
+            padding: 14px 6px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
             font-size: 12px;
-            color: #c0c0d0;
+            color: #b0b0c0;
+            text-decoration: none;
         }
         .menu-item:hover {
             border-color: #f0c27f;
-            background: rgba(240, 194, 127, 0.08);
+            background: rgba(240,194,127,0.08);
             transform: translateY(-2px);
         }
         .menu-item .icon {
-            font-size: 24px;
+            font-size: 22px;
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
+        }
+        .menu-item.admin {
+            border-color: #2a2a5e;
+        }
+        .menu-item.admin .icon {
+            color: #fc5c7d;
         }
         .footer {
-            width: 100%;
-            padding: 16px;
             text-align: center;
-            font-size: 12px;
+            padding: 14px;
+            font-size: 11px;
             color: #505060;
             border-top: 1px solid #1a1a2e;
+        }
+        .role-badge {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        .role-badge.founder {
+            background: rgba(252,92,125,0.15);
+            color: #fc5c7d;
+        }
+        .role-badge.user {
+            background: rgba(240,194,127,0.1);
+            color: #f0c27f;
         }
         @media (max-width: 400px) {
             .menu { grid-template-columns: 1fr 1fr; }
@@ -121,44 +144,63 @@
 <body>
     <div class="header">
         <h1>🪞 Зеркало</h1>
-        <div class="balance">✦ 100</div>
+        <div class="balance" id="balance">✦ 100</div>
     </div>
 
     <div class="main">
+        <!-- Приветствие -->
         <div class="card">
             <div class="card-title">🔄 Первое Отражение</div>
             <div class="card-desc">
                 Скажи «Отрази меня», и я помогу тебе увидеть свой путь.
-                Ты не один.
+                Ты не один. <span class="role-badge user" id="roleBadge">Пользователь</span>
             </div>
-            <span class="card-badge">бесплатно</span>
         </div>
 
-        <div class="card" style="border-color: #2a2a4e;">
+        <!-- Доступные задания -->
+        <div class="card" id="ordersCard">
             <div class="card-title">📋 Доступные Задания</div>
-            <div class="card-desc">
-                <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a2e;">
-                    <span>🔧 Сварка трубы</span>
-                    <span style="color:#f0c27f;">✦ 50</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a2e;">
-                    <span>📦 Доставка груза</span>
-                    <span style="color:#f0c27f;">✦ 120</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:4px 0;">
-                    <span>🧹 Уборка офиса</span>
-                    <span style="color:#f0c27f;">✦ 30</span>
-                </div>
+            <div class="card-desc" id="ordersList">
+                Загрузка...
             </div>
         </div>
 
-        <div class="menu">
-            <div class="menu-item"><span class="icon">🔍</span>Найти</div>
-            <div class="menu-item"><span class="icon">💼</span>Работа</div>
-            <div class="menu-item"><span class="icon">🆘</span>Помощь</div>
-            <div class="menu-item"><span class="icon">💰</span>Кошелёк</div>
-            <div class="menu-item"><span class="icon">👤</span>Профиль</div>
-            <div class="menu-item"><span class="icon">⚙️</span>Настройки</div>
+        <!-- Меню -->
+        <div class="menu" id="mainMenu">
+            <a class="menu-item" href="#" data-action="find">
+                <span class="icon">🔍</span> Найти
+            </a>
+            <a class="menu-item" href="#" data-action="work">
+                <span class="icon">💼</span> Работа
+            </a>
+            <a class="menu-item" href="#" data-action="help">
+                <span class="icon">🆘</span> Помощь
+            </a>
+            <a class="menu-item" href="#" data-action="wallet">
+                <span class="icon">💰</span> Кошелёк
+            </a>
+            <a class="menu-item" href="#" data-action="profile">
+                <span class="icon">👤</span> Профиль
+            </a>
+            <a class="menu-item admin" href="#" data-action="admin" id="adminBtn" style="display:none;">
+                <span class="icon">👑</span> Управление
+            </a>
+        </div>
+
+        <!-- Админ-меню (скрыто для обычных) -->
+        <div class="menu" id="adminMenu" style="display:none; margin-top:10px; border-top:1px solid #2a2a3e; padding-top:14px;">
+            <a class="menu-item admin" href="#" data-action="users">
+                <span class="icon">👥</span> Пользователи
+            </a>
+            <a class="menu-item admin" href="#" data-action="finance">
+                <span class="icon">💰</span> Финансы
+            </a>
+            <a class="menu-item admin" href="#" data-action="logs">
+                <span class="icon">📜</span> Логи
+            </a>
+            <a class="menu-item admin" href="#" data-action="settings">
+                <span class="icon">⚙️</span> Настройки
+            </a>
         </div>
     </div>
 
@@ -167,18 +209,94 @@
     </div>
 
     <script>
-        // Обработка кликов
+        // ==========================================
+        // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
+        // ==========================================
+        
+        let userData = null;
+        let isAdmin = false;
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
+
+        // ==========================================
+        // ЗАГРУЗКА ДАННЫХ
+        // ==========================================
+
+        async function loadUser() {
+            if (!userId) {
+                document.getElementById('roleBadge').textContent = 'Гость';
+                return;
+            }
+            try {
+                const res = await fetch(`/api/user/${userId}`);
+                const data = await res.json();
+                if (data.error) return;
+                userData = data;
+                isAdmin = data.role === 'founder';
+                document.getElementById('balance').textContent = '✦ ' + data.blessings;
+                document.getElementById('roleBadge').textContent = isAdmin ? 'Хранитель' : 'Пользователь';
+                document.getElementById('roleBadge').className = 'role-badge ' + (isAdmin ? 'founder' : 'user');
+                if (isAdmin) {
+                    document.getElementById('adminBtn').style.display = 'block';
+                    document.getElementById('adminMenu').style.display = 'grid';
+                }
+            } catch(e) {
+                console.log('Ошибка загрузки пользователя:', e);
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                const res = await fetch('/api/orders');
+                const orders = await res.json();
+                const list = document.getElementById('ordersList');
+                if (orders.length === 0) {
+                    list.innerHTML = '📭 Нет открытых заданий';
+                    return;
+                }
+                list.innerHTML = orders.map(o => 
+                    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a2e;">
+                        <span>📦 ${o.title}</span>
+                        <span style="color:#f0c27f;">✦ ${o.price}</span>
+                    </div>`
+                ).join('');
+            } catch(e) {
+                document.getElementById('ordersList').textContent = '⚠️ Ошибка загрузки';
+            }
+        }
+
+        // ==========================================
+        // ОБРАБОТКА КЛИКОВ
+        // ==========================================
+
         document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const text = this.textContent.trim();
-                // Отправляем команду в Telegram
-                if (window.Telegram && Telegram.WebApp) {
-                    Telegram.WebApp.sendData(text);
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const action = this.dataset.action;
+                
+                // Отправляем в Telegram
+                if (window.Telegram?.WebApp) {
+                    Telegram.WebApp.sendData(action);
+                    Telegram.WebApp.close();
                 } else {
-                    alert('Открываю: ' + text);
+                    // Для теста
+                    alert('🪞 Действие: ' + action + '\n(В Telegram откроется нужный раздел)');
                 }
             });
         });
+
+        // ==========================================
+        // ЗАПУСК
+        // ==========================================
+
+        loadUser();
+        loadOrders();
+
+        // Обновляем каждые 30 секунд
+        setInterval(loadOrders, 30000);
+
+        console.log('🪞 Зеркало загружено!');
+        console.log('👤 Пользователь:', userId);
+        console.log('👑 Админ:', isAdmin);
     </script>
 </body>
 </html>
