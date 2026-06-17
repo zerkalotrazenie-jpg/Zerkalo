@@ -8,6 +8,7 @@
 ✅ ВСЕ МОДУЛИ
 ✅ WEBAPP ИНТЕРФЕЙС
 ✅ ДЕЛЕНИЕ ПО РОЛЯМ
+✅ ДЛЯ ХРАНИТЕЛЯ И ОБЫЧНЫХ ПОЛЬЗОВАТЕЛЕЙ
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -19,9 +20,7 @@ import sqlite3
 import random
 import requests
 import json
-import re
-import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 
 # ==================================================
@@ -40,7 +39,7 @@ for pkg in REQUIRED_PACKAGES:
     install_package(pkg)
 
 import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 # ==================================================
 # 🔧 НАСТРОЙКИ
@@ -50,21 +49,27 @@ TOKEN = os.environ.get("BOT_TOKEN")
 RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
 PORT = int(os.environ.get("PORT", 8080))
 
-# ID Хранителей
-FOUNDER_ID = 5409420822
-TOMIRIS_ID = 5479179814
+# ==================================================
+# 👑 ХРАНИТЕЛИ (ВАШИ ID)
+# ==================================================
+
+FOUNDER_ID = 5409420822      # ВАШ ID
+TOMIRIS_ID = 5479179814      # ТОМИРИС
 ADMIN_IDS = [5409420822, 5479179814]
 
-# Реквизиты
+# ==================================================
+# 💰 РЕКВИЗИТЫ
+# ==================================================
+
 KASPI_PHONE = "+777733440345"
 KASPI_NAME = "ЗЕРКАЛО"
 CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
 
 print("=" * 70)
-print("🪞 ЗЕРКАЛО — ПОЛНАЯ СИСТЕМА")
+print("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
 print("=" * 70)
-print(f"✅ BOT_TOKEN: {TOKEN[:10] if TOKEN else 'НЕТ'}...")
-print(f"👑 ОСНОВАТЕЛЬ: {FOUNDER_ID}")
+print(f"✅ ТОКЕН: {TOKEN[:10] if TOKEN else 'НЕТ'}...")
+print(f"👑 ХРАНИТЕЛЬ ID: {FOUNDER_ID}")
 print(f"🌐 ХОСТ: {RENDER_HOSTNAME}")
 print("=" * 70)
 
@@ -76,7 +81,7 @@ bot = telebot.TeleBot(TOKEN) if TOKEN else None
 app = Flask(__name__)
 
 # ==================================================
-# ⏰ БЕСКОНЕЧНЫЙ ПИНГ
+# ⏰ ПИНГ (НЕ ДАЁТ ЗАСНУТЬ)
 # ==================================================
 
 def ping_self():
@@ -92,7 +97,7 @@ def ping_self():
         time.sleep(60)
 
 threading.Thread(target=ping_self, daemon=True).start()
-print("✅ ПИНГ ЗАПУЩЕН!")
+print("✅ ПИНГ ЗАПУЩЕН (каждую минуту)")
 
 # ==================================================
 # 📦 БАЗА ДАННЫХ
@@ -119,7 +124,21 @@ c.execute('''CREATE TABLE IF NOT EXISTS orders (
 )''')
 
 conn.commit()
-print("✅ БАЗА ДАННЫХ ГОТОВА!")
+print("✅ БАЗА ДАННЫХ ГОТОВА")
+
+# ==================================================
+# 🔧 ФУНКЦИИ
+# ==================================================
+
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
+
+def get_balance(user_id):
+    if user_id == FOUNDER_ID:
+        return 999999999
+    c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
+    row = c.fetchone()
+    return row[0] if row else 0
 
 # ==================================================
 # 📱 КЛАВИАТУРЫ
@@ -169,16 +188,6 @@ def get_monetization_keyboard():
     kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
-
-def get_balance(user_id):
-    if user_id == FOUNDER_ID:
-        return 999999999
-    c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
-    row = c.fetchone()
-    return row[0] if row else 0
-
 # ==================================================
 # 🤖 КОМАНДЫ БОТА
 # ==================================================
@@ -188,31 +197,56 @@ def cmd_start(message):
     user_id = message.chat.id
     name = message.from_user.first_name
     
+    # Проверяем, Хранитель ли это
     if is_admin(user_id):
         c.execute("INSERT OR REPLACE INTO users (user_id, name, is_admin, role, blessings) VALUES (?, ?, ?, ?, ?)",
                   (user_id, name, 1, 'founder', 999999999))
         conn.commit()
-        bot.reply_to(message, f"👑 АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!\n\n📱 ПАНЕЛЬ УПРАВЛЕНИЯ:", reply_markup=get_founder_keyboard())
+        bot.reply_to(
+            message,
+            f"👑 АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!\n\n"
+            f"📱 ПАНЕЛЬ УПРАВЛЕНИЯ:\n"
+            f"🌐 {RENDER_HOSTNAME}",
+            reply_markup=get_founder_keyboard()
+        )
         return
     
+    # Обычный пользователь
     c.execute("SELECT user_id FROM users WHERE user_id=?", (user_id,))
     if not c.fetchone():
         c.execute("INSERT INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
         conn.commit()
-        bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n✨ Вы получили 100 Благ!\n\n📱 Откройте приложение: [Открыть](https://{RENDER_HOSTNAME}/webapp)", reply_markup=get_people_keyboard(), parse_mode="Markdown")
-        return
     
     c.execute("UPDATE users SET last_seen=? WHERE user_id=?", (datetime.now().isoformat(), user_id))
     conn.commit()
-    bot.reply_to(message, f"🪞 Ассаляму алейкум, {name}!\n\n💰 Баланс: {get_balance(user_id)} Благ\n\n📱 [Открыть приложение](https://{RENDER_HOSTNAME}/webapp)", reply_markup=get_people_keyboard(), parse_mode="Markdown")
+    
+    bot.reply_to(
+        message,
+        f"🪞 Ассаляму алейкум, {name}!\n\n"
+        f"✨ Вы получили 100 Благ!\n\n"
+        f"💰 Баланс: {get_balance(user_id)} Благ\n\n"
+        f"📱 [ОТКРЫТЬ ПРИЛОЖЕНИЕ](https://{RENDER_HOSTNAME}/webapp)",
+        reply_markup=get_people_keyboard(),
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(commands=['id'])
 def cmd_id(message):
-    bot.reply_to(message, f"🆔 *ТВОЙ ID:* `{message.chat.id}`\n\n👑 Хранитель: {'✅' if is_admin(message.chat.id) else '❌'}", parse_mode="Markdown")
+    bot.reply_to(
+        message,
+        f"🆔 *ТВОЙ ID:* `{message.chat.id}`\n\n"
+        f"👑 Хранитель: {'✅' if is_admin(message.chat.id) else '❌'}",
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(commands=['web'])
 def cmd_web(message):
-    bot.reply_to(message, f"📱 *ОТКРОЙ ПРИЛОЖЕНИЕ:*\n[Нажми сюда](https://{RENDER_HOSTNAME}/webapp)", parse_mode="Markdown")
+    bot.reply_to(
+        message,
+        f"📱 *ОТКРОЙ ПРИЛОЖЕНИЕ:*\n"
+        f"[Нажми сюда](https://{RENDER_HOSTNAME}/webapp)",
+        parse_mode="Markdown"
+    )
 
 # ==================================================
 # 🌐 WEBAPP МАРШРУТЫ
@@ -231,7 +265,13 @@ def api_user(user_id):
     c.execute("SELECT user_id, name, role, blessings FROM users WHERE user_id=?", (user_id,))
     user = c.fetchone()
     if user:
-        return jsonify({"id": user[0], "name": user[1], "role": user[2], "blessings": user[3]})
+        return jsonify({
+            "id": user[0],
+            "name": user[1],
+            "role": user[2],
+            "blessings": user[3],
+            "is_admin": is_admin(user[0])
+        })
     return jsonify({"error": "User not found"}), 404
 
 @app.route('/api/orders')
@@ -242,17 +282,17 @@ def api_orders():
 
 @app.route('/ping')
 def ping():
-    return "🪞 ЗЕРКАЛО ЖИВО!", 200
+    return "🪞 ЗЕРКАЛО ЖИВО! ✅", 200
 
 @app.route('/')
 def home():
-    return """
+    return f"""
     <h1>🪞 ЗЕРКАЛО</h1>
     <p>✅ Работает 24/7</p>
-    <p>📡 Пинг активен</p>
+    <p>📡 Пинг: активен</p>
     <p>👑 Хранитель: активен</p>
     <hr>
-    <p><a href="/webapp">📱 Открыть приложение</a></p>
+    <p><a href="/webapp">📱 ОТКРЫТЬ ПРИЛОЖЕНИЕ</a></p>
     <p><i>Ассаляму алейкум ва рахматуллахи ва баракатух</i></p>
     """, 200
 
@@ -268,7 +308,7 @@ def run_bot():
         print("❌ НЕТ TOKEN!")
 
 def run_flask():
-    print(f"🌐 ЗАПУСКАЮ WEB-СЕРВЕР НА ПОРТУ {PORT}...")
+    print(f"🌐 ЗАПУСКАЮ WEB СЕРВЕР НА ПОРТУ {PORT}...")
     app.run(host='0.0.0.0', port=PORT)
 
 if __name__ == "__main__":
