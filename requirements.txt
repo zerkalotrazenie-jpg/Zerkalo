@@ -1,6 +1,4 @@
-pytelegrambotapi
-groq
-flask
-requests
-SpeechRecognition
-pydub
+pytelegrambotapi==4.16.0
+flask==2.3.3
+requests==2.31.0
+groq==0.4.0
