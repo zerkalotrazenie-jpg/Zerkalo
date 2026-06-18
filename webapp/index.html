@@ -115,20 +115,19 @@
             background: linear-gradient(90deg, #f0c27f, #fc5c7d);
             color: #0a0a12;
         }
-        .btn-secondary {
-            background: rgba(255,255,255,0.05);
-            color: #e0e0e0;
-            border: 1px solid #2a2a3e;
-        }
         .btn-danger {
             background: rgba(252, 92, 125, 0.2);
             color: #fc5c7d;
             border: 1px solid rgba(252, 92, 125, 0.3);
         }
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            color: #e0e0e0;
+            border: 1px solid #2a2a3e;
+        }
         .btn:disabled {
             opacity: 0.4;
             cursor: not-allowed;
-            transform: none !important;
         }
         .input-area {
             display: flex;
@@ -144,30 +143,9 @@
             color: #e0e0e0;
             font-size: 14px;
             outline: none;
-            transition: border 0.3s;
         }
         .input-area input:focus { border-color: #f0c27f; }
         .input-area input::placeholder { color: #505060; }
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #a0a0b0;
-        }
-        .status-indicator .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .dot.green { background: #4ade80; animation: pulse 1.5s infinite; }
-        .dot.red { background: #fc5c7d; }
-        .dot.yellow { background: #facc15; animation: pulse 1.5s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
         .qr-container {
             background: rgba(255,255,255,0.03);
             border-radius: 16px;
@@ -183,10 +161,20 @@
             padding: 8px;
         }
         .hidden { display: none !important; }
+        .command-hint {
+            font-size: 12px;
+            color: #505060;
+            padding: 10px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            border: 1px solid #1a1a2e;
+            margin-top: 10px;
+            line-height: 1.8;
+        }
+        .command-hint strong { color: #f0c27f; }
         @media (max-width: 400px) {
             .controls { gap: 6px; }
             .btn { font-size: 12px; padding: 8px 14px; }
-            .header h1 { font-size: 16px; }
         }
     </style>
 </head>
@@ -202,19 +190,21 @@
         <div class="message assistant" id="welcomeMessage">
             <strong>🪞 Зеркало</strong><br>
             Ассаляму алейкум. Я — Зеркало.<br>
-            Нажмите кнопку «🎤 Говорить», чтобы начать разговор.
+            Говорите или пишите на русском языке.<br>
+            Скажите <strong>«Помощь»</strong>, чтобы увидеть все команды.
             <div class="time" id="welcomeTime"></div>
         </div>
     </div>
 
     <div class="controls">
-        <button class="btn btn-primary" id="startBtn">🎤 Говорить</button>
-        <button class="btn btn-danger hidden" id="stopBtn">⏹ Остановить</button>
-        <button class="btn btn-secondary" id="testBtn">🔊 Проверить микрофон</button>
+        <button class="btn btn-primary" id="micBtn">🎤 Говорить</button>
+        <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Остановить</button>
+        <button class="btn btn-secondary" id="helpBtn">❓ Помощь</button>
+        <button class="btn btn-secondary" id="clearBtn">🧹 Очистить</button>
     </div>
 
     <div class="input-area">
-        <input type="text" id="textInput" placeholder="Напишите сообщение...">
+        <input type="text" id="textInput" placeholder="Напишите сообщение на русском...">
         <button class="btn btn-primary" id="sendBtn">➤</button>
     </div>
 
@@ -222,40 +212,56 @@
         <img id="qrImage" src="" alt="QR-код">
         <div class="qr-info" id="qrInfo">Сумма: 0 ₸</div>
     </div>
+
+    <div class="command-hint" id="helpContainer">
+        <strong>📋 ДОСТУПНЫЕ КОМАНДЫ (голосом или текстом):</strong><br>
+        • <strong>Помощь</strong> — показать этот список<br>
+        • <strong>Привет</strong> — поздороваться<br>
+        • <strong>Пока</strong> — попрощаться<br>
+        • <strong>Баланс</strong> — показать баланс<br>
+        • <strong>QR-код</strong> — сгенерировать QR для оплаты<br>
+        • <strong>Работа</strong> — поиск работы<br>
+        • <strong>Бизнес</strong> — автоматизация бизнеса<br>
+        • <strong>Лизинг</strong> — информация о лизинге<br>
+        • <strong>Дропшиппинг</strong> — информация о дропшиппинге<br>
+        • <strong>Реклама</strong> — реклама в системе<br>
+        • <strong>Найти мастера</strong> — поиск специалиста<br>
+        • <strong>Анкета</strong> — заполнить анкету<br>
+        • <strong>Очистить</strong> — очистить чат<br>
+        • <strong>Спасибо</strong> — благодарность
+    </div>
 </div>
 
 <script>
     // ==========================================
-    // 🪞 ЗЕРКАЛО — ИСПРАВЛЕННАЯ ВЕРСИЯ
+    // 🪞 ЗЕРКАЛО — ПОЛНАЯ ВЕРСИЯ
     // ==========================================
 
     const chatContainer = document.getElementById('chatContainer');
-    const startBtn = document.getElementById('startBtn');
+    const micBtn = document.getElementById('micBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const testBtn = document.getElementById('testBtn');
+    const helpBtn = document.getElementById('helpBtn');
+    const clearBtn = document.getElementById('clearBtn');
     const textInput = document.getElementById('textInput');
     const sendBtn = document.getElementById('sendBtn');
     const connectionStatus = document.getElementById('connectionStatus');
+    const helpContainer = document.getElementById('helpContainer');
+    const qrContainer = document.getElementById('qrContainer');
+    const qrImage = document.getElementById('qrImage');
+    const qrInfo = document.getElementById('qrInfo');
 
     let isListening = false;
     let recognition = null;
     let synthesis = window.speechSynthesis;
-    let currentUtterance = null;
+    let userData = { name: '', balance: 100, role: 'user' };
 
     // ==========================================
     // СТАТУС
     // ==========================================
 
     function setStatus(text, color = 'green') {
-        const dot = connectionStatus;
-        if (dot) {
-            dot.textContent = text;
-        }
+        connectionStatus.textContent = text;
     }
-
-    // ==========================================
-    // ДОБАВЛЕНИЕ СООБЩЕНИЙ
-    // ==========================================
 
     function addMessage(text, sender = 'assistant') {
         const msgDiv = document.createElement('div');
@@ -268,45 +274,29 @@
     }
 
     // ==========================================
-    // ГОЛОСОВОЙ ОТВЕТ (TTS)
+    // ГОЛОСОВОЙ ОТВЕТ
     // ==========================================
 
-    function speakText(text, callback) {
-        if (!synthesis) {
-            if (callback) callback();
-            return;
-        }
-        if (currentUtterance) {
-            synthesis.cancel();
-        }
+    function speakText(text) {
+        if (!synthesis) return;
+        if (synthesis.speaking) synthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ru-RU';
         utterance.rate = 0.9;
         utterance.pitch = 1.0;
-        utterance.volume = 1;
-        utterance.onend = () => {
-            currentUtterance = null;
-            if (callback) callback();
-        };
-        utterance.onerror = () => {
-            currentUtterance = null;
-            if (callback) callback();
-        };
-        currentUtterance = utterance;
         synthesis.speak(utterance);
     }
 
     // ==========================================
-    // РАСПОЗНАВАНИЕ РЕЧИ (Web Speech API)
+    // РАСПОЗНАВАНИЕ РЕЧИ
     // ==========================================
 
     function initRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            addMessage('❌ Ваш браузер не поддерживает голосовой ввод. Используйте текстовое поле.', 'assistant');
+            addMessage('❌ Ваш браузер не поддерживает голосовой ввод.', 'assistant');
             return false;
         }
-
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
         recognition.continuous = true;
@@ -315,32 +305,27 @@
 
         recognition.onstart = () => {
             isListening = true;
-            startBtn.disabled = true;
-            stopBtn.classList.remove('hidden');
-            setStatus('🎤 Слушаю...', 'yellow');
-            addMessage('🎤 Я слушаю вас...', 'assistant');
+            micBtn.textContent = '🔴 Запись...';
+            micBtn.style.background = 'rgba(252, 92, 125, 0.3)';
+            stopBtn.disabled = false;
+            setStatus('🔴 Запись...', 'red');
         };
 
         recognition.onerror = (event) => {
-            console.error('Ошибка распознавания:', event.error);
+            console.error('Ошибка:', event.error);
             if (event.error === 'not-allowed') {
-                addMessage('❌ Доступ к микрофону запрещён. Разрешите доступ в браузере.', 'assistant');
+                addMessage('❌ Доступ к микрофону запрещён.', 'assistant');
             } else if (event.error === 'no-speech') {
-                addMessage('🔇 Я не услышал речи. Попробуйте ещё раз.', 'assistant');
-            } else {
-                addMessage(`⚠️ Ошибка: ${event.error}`, 'assistant');
+                addMessage('🔇 Я не услышал речи. Попробуйте снова.', 'assistant');
             }
-            stopListening();
+            stopRecording();
         };
 
         recognition.onend = () => {
             if (isListening) {
-                // Если слушали и закончили — перезапускаем
-                try {
-                    recognition.start();
-                } catch (e) {}
+                try { recognition.start(); } catch (e) {}
             } else {
-                stopListening();
+                stopRecording();
             }
         };
 
@@ -353,204 +338,245 @@
                 }
             }
             if (finalText) {
-                handleUserInput(finalText);
+                addMessage(finalText, 'user');
+                processCommand(finalText);
+                stopRecording();
             }
         };
-
         return true;
     }
 
     // ==========================================
-    // УПРАВЛЕНИЕ ЗАПИСЬЮ
+    // ЗАПИСЬ / ОСТАНОВКА
     // ==========================================
 
-    function startListening() {
+    function startRecording() {
         if (!recognition) {
             const ok = initRecognition();
             if (!ok) return;
         }
-        try {
-            recognition.start();
-        } catch (e) {
-            if (e.message.includes('already started')) {
-                // Уже запущено
-            } else {
-                console.error('Ошибка запуска:', e);
-                addMessage('⚠️ Не удалось запустить микрофон. Попробуйте снова.', 'assistant');
-            }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            addMessage('❌ Микрофон не поддерживается.', 'assistant');
+            return;
         }
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => {
+                try { recognition.start(); } catch (e) {}
+            })
+            .catch(() => {
+                addMessage('❌ Разрешите доступ к микрофону в браузере.', 'assistant');
+            });
     }
 
-    function stopListening() {
+    function stopRecording() {
         isListening = false;
         if (recognition) {
-            try {
-                recognition.stop();
-            } catch (e) {}
+            try { recognition.stop(); } catch (e) {}
         }
-        startBtn.disabled = false;
-        stopBtn.classList.add('hidden');
+        micBtn.textContent = '🎤 Говорить';
+        micBtn.style.background = '';
+        stopBtn.disabled = true;
         setStatus('🟢 Готов', 'green');
-        addMessage('⏹ Запись остановлена.', 'assistant');
     }
 
     // ==========================================
-    // ОБРАБОТКА ВВОДА
+    // КОМАНДЫ (ВСЕ НА РУССКОМ)
     // ==========================================
 
-    function handleUserInput(text) {
-        if (!text || text.trim() === '') return;
-        addMessage(text, 'user');
-        processDialog(text);
-    }
-
-    // ==========================================
-    // ДИАЛОГ (ПРОСТОЙ ОТВЕТ)
-    // ==========================================
-
-    function processDialog(text) {
+    function processCommand(text) {
         const lower = text.toLowerCase().trim();
 
-        if (lower.includes('привет') || lower.includes('салям')) {
-            const response = 'Ассаляму алейкум! Я рад видеть тебя. Как я могу помочь?';
+        // ======== ПОМОЩЬ ========
+        if (lower.includes('помощь') || lower.includes('команды') || lower.includes('что ты умеешь')) {
+            const response = '📋 Вот что я умею:\n\n' +
+                '• Привет — поздороваться\n' +
+                '• Пока — попрощаться\n' +
+                '• Баланс — показать баланс\n' +
+                '• QR-код — сгенерировать QR для оплаты\n' +
+                '• Работа — поиск работы\n' +
+                '• Бизнес — автоматизация бизнеса\n' +
+                '• Лизинг — информация о лизинге\n' +
+                '• Дропшиппинг — информация о дропшиппинге\n' +
+                '• Реклама — реклама в системе\n' +
+                '• Найти мастера — поиск специалиста\n' +
+                '• Анкета — заполнить анкету\n' +
+                '• Очистить — очистить чат\n' +
+                '• Спасибо — благодарность\n\n' +
+                'Скажите любую из этих команд голосом или напишите.';
             addMessage(response, 'assistant');
             speakText(response);
             return;
         }
 
-        if (lower.includes('имя') || lower.includes('зовут')) {
-            const response = 'Меня зовут Зеркало. Я создан, чтобы помогать людям.';
+        // ======== ПРИВЕТ ========
+        if (lower.includes('привет') || lower.includes('салям') || lower.includes('здравствуй')) {
+            const response = 'Ассаляму алейкум! Я рад видеть тебя. Скажи «Помощь», чтобы увидеть все команды.';
             addMessage(response, 'assistant');
             speakText(response);
             return;
         }
 
-        if (lower.includes('работа') || lower.includes('найти')) {
-            const response = 'Я могу помочь найти работу. Расскажи, какая у тебя профессия.';
+        // ======== ПОКА ========
+        if (lower.includes('пока') || lower.includes('до свидания') || lower.includes('прощай')) {
+            const response = 'До свидания! Я всегда здесь, если понадоблюсь. Амин.';
             addMessage(response, 'assistant');
             speakText(response);
             return;
         }
 
-        if (lower.includes('оплата') || lower.includes('qr')) {
-            const response = 'Я могу сгенерировать QR-код для оплаты. Скажи сумму.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            showQR(1000, 'Оплата по запросу');
-            return;
-        }
-
-        if (lower.includes('спасибо')) {
-            const response = 'Обращайся в любое время. Я всегда рядом.';
+        // ======== БАЛАНС ========
+        if (lower.includes('баланс') || lower.includes('сколько денег') || lower.includes('блага')) {
+            const response = `💰 Ваш баланс: ${userData.balance} Благ. Хотите пополнить? Скажите «QR-код».`;
             addMessage(response, 'assistant');
             speakText(response);
             return;
         }
 
-        // Общий ответ
-        const response = 'Я понял. Я продолжаю слушать. Если нужно — я могу помочь с работой, оплатой или поиском. Что тебе нужно?';
-        addMessage(response, 'assistant');
-        speakText(response);
+        // ======== QR-КОД ========
+        if (lower.includes('qr') || lower.includes('код') || lower.includes('оплатить') || lower.includes('пополнить')) {
+            const amount = 1000;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%20${amount}%20тг%20заказ`;
+            qrImage.src = qrApiUrl;
+            qrInfo.textContent = `💳 Сумма: ${amount} ₸`;
+            qrContainer.classList.remove('hidden');
+            const response = `💳 QR-код для оплаты ${amount} ₸ сгенерирован. Отсканируйте в приложении Kaspi.`;
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== РАБОТА ========
+        if (lower.includes('работа') || lower.includes('вакансия') || lower.includes('найти работу')) {
+            const response = '💼 Я могу помочь найти работу. Расскажите, какая у вас профессия или что вы ищете.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== БИЗНЕС ========
+        if (lower.includes('бизнес') || lower.includes('автоматизация') || lower.includes('предприниматель')) {
+            const response = '🏢 Я могу автоматизировать ваш бизнес: рестораны, магазины, склады, отели. Подключение через iiko, Kaspi, 2GIS. Скажите «Подробнее», если интересно.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== ЛИЗИНГ ========
+        if (lower.includes('лизинг') || lower.includes('аренда') || lower.includes('техника')) {
+            const response = '📈 Лизинг — это покупка активов (машины, техника, оборудование) и сдача их в аренду. Активы остаются у вас. Скажите «Подробнее», если интересно.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== ДРОПШИППИНГ ========
+        if (lower.includes('дропшиппинг') || lower.includes('торговля') || lower.includes('товар')) {
+            const response = '📦 Дропшиппинг — это торговля без склада. Я связываю продавца и покупателя, беру процент. Скажите «Подробнее», если интересно.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== РЕКЛАМА ========
+        if (lower.includes('реклама') || lower.includes('продвижение') || lower.includes('объявление')) {
+            const response = '📢 Реклама внутри системы — я показываю ваши товары и услуги целевой аудитории. Скажите «Подробнее», если хотите разместить рекламу.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== НАЙТИ МАСТЕРА ========
+        if (lower.includes('мастер') || lower.includes('специалист') || lower.includes('ремонт')) {
+            const response = '🔧 Я могу найти мастера: сварщика, электрика, строителя, сантехника. Напишите, что вам нужно.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== АНКЕТА ========
+        if (lower.includes('анкета') || lower.includes('регистрация') || lower.includes('заполнить')) {
+            const response = '📋 Давайте заполним анкету. Как вас зовут?';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== СПАСИБО ========
+        if (lower.includes('спасибо') || lower.includes('благодарю')) {
+            const response = 'Пожалуйста! Обращайтесь в любое время. Я всегда рядом.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ======== ОЧИСТИТЬ ========
+        if (lower.includes('очистить') || lower.includes('стереть') || lower.includes('удалить чат')) {
+            chatContainer.innerHTML = '';
+            addMessage('🪞 Чат очищен. Скажите «Помощь», чтобы увидеть команды.', 'assistant');
+            return;
+        }
+
+        // ======== НЕИЗВЕСТНАЯ КОМАНДА ========
+        if (lower) {
+            const response = 'Я не совсем понял. Скажите «Помощь», чтобы увидеть все доступные команды.';
+            addMessage(response, 'assistant');
+            speakText(response);
+        }
     }
 
     // ==========================================
-    // QR-КОД
+    // КНОПКИ
     // ==========================================
 
-    function showQR(amount, description) {
-        const qrContainer = document.getElementById('qrContainer');
-        const qrImage = document.getElementById('qrImage');
-        const qrInfo = document.getElementById('qrInfo');
-        qrContainer.classList.remove('hidden');
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%20${amount}%20тг%20${description}`;
-        qrImage.src = qrApiUrl;
-        qrInfo.textContent = `💳 Оплата: ${amount} ₸ | ${description}`;
-        addMessage(`💳 QR-код для оплаты ${amount} ₸ сгенерирован.`, 'assistant');
-    }
-
-    // ==========================================
-    // ТЕСТ МИКРОФОНА
-    // ==========================================
-
-    testBtn.addEventListener('click', function() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            addMessage('❌ Ваш браузер не поддерживает микрофон.', 'assistant');
-            return;
+    micBtn.addEventListener('click', function() {
+        if (isListening) {
+            stopRecording();
+        } else {
+            startRecording();
         }
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(() => {
-                addMessage('✅ Микрофон работает! Нажмите «🎤 Говорить» для записи.', 'assistant');
-                setStatus('🟢 Микрофон ОК', 'green');
-            })
-            .catch((err) => {
-                console.error('Ошибка доступа к микрофону:', err);
-                addMessage('❌ Не удалось получить доступ к микрофону. Разрешите доступ в браузере.', 'assistant');
-                setStatus('🔴 Микрофон НЕТ', 'red');
-            });
     });
 
-    // ==========================================
-    // КНОПКИ ЗАПУСКА / ОСТАНОВКИ
-    // ==========================================
+    stopBtn.addEventListener('click', stopRecording);
 
-    startBtn.addEventListener('click', function() {
-        // Проверяем доступ к микрофону
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            addMessage('❌ Ваш браузер не поддерживает микрофон. Используйте текстовое поле.', 'assistant');
-            return;
-        }
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(() => {
-                startListening();
-            })
-            .catch((err) => {
-                console.error('Ошибка доступа к микрофону:', err);
-                addMessage('❌ Не удалось получить доступ к микрофону. Разрешите доступ в браузере.', 'assistant');
-            });
+    helpBtn.addEventListener('click', function() {
+        processCommand('помощь');
     });
 
-    stopBtn.addEventListener('click', function() {
-        stopListening();
+    clearBtn.addEventListener('click', function() {
+        chatContainer.innerHTML = '';
+        addMessage('🪞 Чат очищен. Скажите «Помощь», чтобы увидеть команды.', 'assistant');
     });
-
-    // ==========================================
-    // ТЕКСТОВЫЙ ВВОД
-    // ==========================================
 
     sendBtn.addEventListener('click', function() {
         const text = textInput.value.trim();
         if (text) {
-            handleUserInput(text);
+            addMessage(text, 'user');
+            processCommand(text);
             textInput.value = '';
         }
     });
 
     textInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            sendBtn.click();
-        }
+        if (e.key === 'Enter') sendBtn.click();
     });
 
     // ==========================================
     // ИНИЦИАЛИЗАЦИЯ
     // ==========================================
 
-    // Обновляем время приветствия
     const now = new Date();
     const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     const welcomeTime = document.getElementById('welcomeTime');
     if (welcomeTime) welcomeTime.textContent = timeStr;
 
-    // Инициализируем распознавание (без автозапуска)
     initRecognition();
 
-    // Приветствие при загрузке
     setTimeout(() => {
-        addMessage('🪞 Я готов слушать. Нажмите «🎤 Говорить» или напишите текст.', 'assistant');
+        addMessage('🪞 Я готов. Скажите «Помощь», чтобы увидеть все команды.', 'assistant');
     }, 1000);
 
     console.log('🪞 Зеркало загружено');
-    console.log('📱 Голосовой ввод готов');
+    console.log('📋 Команды: Помощь, Привет, Пока, Баланс, QR-код, Работа, Бизнес, Лизинг, Дропшиппинг, Реклама, Найти мастера, Анкета, Очистить, Спасибо');
 </script>
 </body>
 </html>
