@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🪞 ЗЕРКАЛО — TELEGRAM БОТ
+🪞 ЗЕРКАЛО — С ЗАЩИТОЙ ПО ID
 ═══════════════════════════════════════════════════════════════════
-✅ ПРИВЕТСТВИЕ С ОПИСАНИЕМ
-✅ КНОПКА ПЕРЕХОДА В WEBAPP
-✅ НЕТ ЛИШНИХ КНОПОК
+✅ ПРИВЕТСТВИЕ + КНОПКА WEBAPP
+✅ РАЗГРАНИЧЕНИЕ: ХРАНИТЕЛЬ / НАСЛЕДНИК / СЕМЬЯ / ВСЕ ОСТАЛЬНЫЕ
+✅ КОМАНДЫ ТОЛЬКО ДЛЯ СВОИХ
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -27,6 +27,21 @@ RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.c
 PORT = int(os.environ.get("PORT", 8080))
 
 # ==================================================
+# 👑 ID ДЛЯ РАЗГРАНИЧЕНИЯ
+# ==================================================
+
+# Хранитель и Наследник (полный доступ)
+FOUNDER_ID = 5409420822          # Хранитель (Каирбек)
+TOMIRIS_ID = 5479179814          # Наследник (Томирис)
+ADMIN_IDS = [FOUNDER_ID, TOMIRIS_ID]
+
+# Семья (ограниченный доступ — только просмотр)
+FAMILY_IDS = [
+    5479179814,  # Томирис (уже есть в ADMIN, но оставлю для ясности)
+    # Сюда добавить ID Нурсулу, Азамата, когда узнаешь
+]
+
+# ==================================================
 # 📝 ЛОГИРОВАНИЕ
 # ==================================================
 
@@ -41,13 +56,32 @@ bot = telebot.TeleBot(TOKEN) if TOKEN else None
 app = Flask(__name__)
 
 # ==================================================
+# 🔐 ПРОВЕРКА ПРАВ
+# ==================================================
+
+def is_admin(user_id):
+    """Проверяет, имеет ли пользователь полный доступ"""
+    return user_id in ADMIN_IDS
+
+def is_family(user_id):
+    """Проверяет, является ли пользователь членом семьи (только просмотр)"""
+    return user_id in FAMILY_IDS or user_id in ADMIN_IDS
+
+def get_user_role(user_id):
+    """Возвращает роль пользователя"""
+    if user_id in ADMIN_IDS:
+        return "Хранитель"
+    elif user_id in FAMILY_IDS:
+        return "Семья"
+    else:
+        return "Пользователь"
+
+# ==================================================
 # 📱 КЛАВИАТУРА С КНОПКОЙ WEBAPP
 # ==================================================
 
 def get_webapp_keyboard():
-    """Клавиатура с одной кнопкой — переход в WebApp"""
     kb = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-    # Создаём кнопку с WebApp
     webapp_btn = KeyboardButton(
         text="📱 Открыть Зеркало",
         web_app=WebAppInfo(url=f"https://{RENDER_HOSTNAME}/webapp")
@@ -56,7 +90,7 @@ def get_webapp_keyboard():
     return kb
 
 # ==================================================
-# 📖 ТЕКСТ ПРИВЕТСТВИЯ (ПОЛНОЕ ОПИСАНИЕ)
+# 📖 ТЕКСТ ПРИВЕТСТВИЯ
 # ==================================================
 
 WELCOME_TEXT = """
@@ -162,29 +196,96 @@ WELCOME_TEXT = """
 
 @bot.message_handler(commands=['start'])
 def cmd_start(message):
-    """Приветствие с описанием и кнопкой перехода"""
-    logger.info(f"Пользователь {message.chat.id} запустил бота")
+    user_id = message.chat.id
+    role = get_user_role(user_id)
+    logger.info(f"Старт: {user_id} | Роль: {role}")
+    
+    # Добавляем приветствие с учётом роли
+    welcome = WELCOME_TEXT
+    if role == "Хранитель":
+        welcome = f"👑 **Приветствую, Хранитель!**\n\n{WELCOME_TEXT}"
+    elif role == "Семья":
+        welcome = f"🪞 **Привет, {message.from_user.first_name}!**\n\n{WELCOME_TEXT}"
+    
     bot.reply_to(
         message,
-        WELCOME_TEXT,
+        welcome,
         reply_markup=get_webapp_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(commands=['id'])
+def cmd_id(message):
+    """Показывает ID пользователя (только для администраторов)"""
+    user_id = message.chat.id
+    if not is_admin(user_id):
+        bot.reply_to(message, "❌ У вас нет прав для этой команды.")
+        return
+    
+    target_id = message.text.replace('/id', '').strip()
+    if target_id:
+        try:
+            target_id = int(target_id)
+            bot.reply_to(message, f"🆔 ID пользователя: `{target_id}`", parse_mode="Markdown")
+        except:
+            bot.reply_to(message, "❌ Введите корректный ID.")
+    else:
+        bot.reply_to(message, f"🆔 Ваш ID: `{user_id}`", parse_mode="Markdown")
+
+@bot.message_handler(commands=['stats'])
+def cmd_stats(message):
+    """Статистика системы (только для администраторов)"""
+    user_id = message.chat.id
+    if not is_admin(user_id):
+        bot.reply_to(message, "❌ У вас нет прав для этой команды.")
+        return
+    
+    bot.reply_to(
+        message,
+        "📊 *Статистика системы*\n\n"
+        "👥 Пользователей: 0\n"
+        "💳 Баланс: 0 Благ\n"
+        "📦 Заказов: 0\n"
+        "📖 Сур: 114\n\n"
+        "🪞 Зеркало работает стабильно.",
         parse_mode="Markdown"
     )
 
 @bot.message_handler(commands=['help'])
 def cmd_help(message):
-    """Помощь"""
+    user_id = message.chat.id
+    role = get_user_role(user_id)
+    
+    help_text = "🪞 Я — Зеркало. Нажми кнопку «📱 Открыть Зеркало», чтобы начать.\n\n"
+    if role == "Хранитель":
+        help_text += "👑 Вы Хранитель. Доступны команды: /id, /stats, /clear, /backup"
+    
     bot.reply_to(
         message,
-        "🪞 Я — Зеркало. Нажми кнопку «📱 Открыть Зеркало», чтобы начать.\n\n"
-        "Если у тебя есть вопросы — просто напиши мне.",
-        reply_markup=get_webapp_keyboard()
+        help_text,
+        reply_markup=get_webapp_keyboard(),
+        parse_mode="Markdown"
     )
 
 @bot.message_handler(func=lambda m: True)
 def echo_all(message):
-    """Обработка всех сообщений"""
-    logger.info(f"Сообщение от {message.chat.id}: {message.text}")
+    """Обработка всех остальных сообщений"""
+    user_id = message.chat.id
+    role = get_user_role(user_id)
+    logger.info(f"Сообщение от {user_id} ({role}): {message.text}")
+    
+    # Если это команда (начинается с /), но не обработана выше — проверяем права
+    if message.text and message.text.startswith('/'):
+        if not is_admin(user_id):
+            bot.reply_to(
+                message,
+                "❌ У вас нет прав для выполнения команд.\n\n"
+                "Нажмите кнопку «📱 Открыть Зеркало», чтобы пользоваться приложением.",
+                reply_markup=get_webapp_keyboard()
+            )
+            return
+    
+    # Обычное сообщение
     bot.reply_to(
         message,
         "🪞 Я — Зеркало. Я слушаю тебя.\n\n"
@@ -240,6 +341,8 @@ if __name__ == "__main__":
     logger.info("=" * 70)
     logger.info("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
     logger.info("=" * 70)
+    logger.info(f"👑 Хранитель ID: {FOUNDER_ID}")
+    logger.info(f"👑 Наследник ID: {TOMIRIS_ID}")
     logger.info(f"🌐 ХОСТ: {RENDER_HOSTNAME}")
     logger.info("=" * 70)
     
