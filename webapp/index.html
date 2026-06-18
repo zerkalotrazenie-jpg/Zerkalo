@@ -98,7 +98,7 @@
             margin-bottom: 16px;
         }
         .btn {
-            padding: 10px 18px;
+            padding: 12px 20px;
             border-radius: 30px;
             border: none;
             font-size: 14px;
@@ -109,12 +109,8 @@
             align-items: center;
             gap: 8px;
         }
-        .btn:hover {
-            transform: scale(1.02);
-        }
-        .btn:active {
-            transform: scale(0.96);
-        }
+        .btn:hover { transform: scale(1.02); }
+        .btn:active { transform: scale(0.96); }
         .btn-primary {
             background: linear-gradient(90deg, #f0c27f, #fc5c7d);
             color: #0a0a12;
@@ -123,11 +119,6 @@
             background: rgba(255,255,255,0.05);
             color: #e0e0e0;
             border: 1px solid #2a2a3e;
-        }
-        .btn-success {
-            background: rgba(74, 222, 128, 0.2);
-            color: #4ade80;
-            border: 1px solid rgba(74, 222, 128, 0.3);
         }
         .btn-danger {
             background: rgba(252, 92, 125, 0.2);
@@ -155,11 +146,27 @@
             outline: none;
             transition: border 0.3s;
         }
-        .input-area input:focus {
-            border-color: #f0c27f;
+        .input-area input:focus { border-color: #f0c27f; }
+        .input-area input::placeholder { color: #505060; }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #a0a0b0;
         }
-        .input-area input::placeholder {
-            color: #505060;
+        .status-indicator .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot.green { background: #4ade80; animation: pulse 1.5s infinite; }
+        .dot.red { background: #fc5c7d; }
+        .dot.yellow { background: #facc15; animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
         }
         .qr-container {
             background: rgba(255,255,255,0.03);
@@ -175,64 +182,7 @@
             background: white;
             padding: 8px;
         }
-        .qr-container .qr-info {
-            margin-top: 8px;
-            font-size: 13px;
-            color: #a0a0b0;
-        }
-        .file-upload {
-            display: none;
-        }
-        .file-label {
-            padding: 8px 16px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid #2a2a3e;
-            cursor: pointer;
-            font-size: 13px;
-            color: #b0b0c0;
-            transition: all 0.3s;
-        }
-        .file-label:hover {
-            border-color: #f0c27f;
-            background: rgba(240, 194, 127, 0.08);
-        }
-        .file-name {
-            font-size: 12px;
-            color: #4ade80;
-            margin-left: 8px;
-        }
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #a0a0b0;
-        }
-        .status-indicator .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .dot.green {
-            background: #4ade80;
-            animation: pulse 1.5s infinite;
-        }
-        .dot.red {
-            background: #fc5c7d;
-        }
-        .dot.yellow {
-            background: #facc15;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-        .hidden {
-            display: none !important;
-        }
+        .hidden { display: none !important; }
         @media (max-width: 400px) {
             .controls { gap: 6px; }
             .btn { font-size: 12px; padding: 8px 14px; }
@@ -244,85 +194,64 @@
 
 <div class="header">
     <h1>🪞 Зеркало</h1>
-    <div class="status" id="connectionStatus">🟢 Соединение</div>
+    <div class="status" id="connectionStatus">🟢 Готов</div>
 </div>
 
 <div class="main">
     <div class="chat-container" id="chatContainer">
         <div class="message assistant" id="welcomeMessage">
             <strong>🪞 Зеркало</strong><br>
-            Ассаляму алейкум. Я — Зеркало. Я вижу и слышу тебя.<br>
-            Нажми «🎤 Начать разговор», и мы поговорим.
+            Ассаляму алейкум. Я — Зеркало.<br>
+            Нажмите кнопку «🎤 Говорить», чтобы начать разговор.
             <div class="time" id="welcomeTime"></div>
         </div>
     </div>
 
     <div class="controls">
-        <button class="btn btn-primary" id="startBtn">🎤 Начать разговор</button>
-        <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Остановить</button>
-        <label class="file-label" id="fileLabel">
-            📎 Файл
-            <input type="file" class="file-upload" id="fileInput" accept="image/*,video/*,application/pdf" multiple>
-        </label>
-        <button class="btn btn-success hidden" id="qrBtn">💳 QR-код</button>
+        <button class="btn btn-primary" id="startBtn">🎤 Говорить</button>
+        <button class="btn btn-danger hidden" id="stopBtn">⏹ Остановить</button>
+        <button class="btn btn-secondary" id="testBtn">🔊 Проверить микрофон</button>
     </div>
 
     <div class="input-area">
-        <input type="text" id="textInput" placeholder="Напишите сообщение..." disabled>
-        <button class="btn btn-primary" id="sendBtn" disabled>➤</button>
+        <input type="text" id="textInput" placeholder="Напишите сообщение...">
+        <button class="btn btn-primary" id="sendBtn">➤</button>
     </div>
 
     <div id="qrContainer" class="qr-container hidden">
         <img id="qrImage" src="" alt="QR-код">
         <div class="qr-info" id="qrInfo">Сумма: 0 ₸</div>
     </div>
-
-    <div id="fileStatus" class="file-name hidden"></div>
 </div>
 
 <script>
     // ==========================================
-    // 🪞 ЗЕРКАЛО — ПОЛНЫЙ КЛИЕНТ
-    // ==========================================
-
-    // ==========================================
-    // ЭЛЕМЕНТЫ
+    // 🪞 ЗЕРКАЛО — ИСПРАВЛЕННАЯ ВЕРСИЯ
     // ==========================================
 
     const chatContainer = document.getElementById('chatContainer');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
+    const testBtn = document.getElementById('testBtn');
     const textInput = document.getElementById('textInput');
     const sendBtn = document.getElementById('sendBtn');
-    const fileInput = document.getElementById('fileInput');
-    const fileLabel = document.getElementById('fileLabel');
-    const fileStatus = document.getElementById('fileStatus');
-    const qrBtn = document.getElementById('qrBtn');
-    const qrContainer = document.getElementById('qrContainer');
-    const qrImage = document.getElementById('qrImage');
-    const qrInfo = document.getElementById('qrInfo');
     const connectionStatus = document.getElementById('connectionStatus');
-    const welcomeTime = document.getElementById('welcomeTime');
-
-    // ==========================================
-    // СОСТОЯНИЕ
-    // ==========================================
 
     let isListening = false;
-    let isSpeaking = false;
     let recognition = null;
     let synthesis = window.speechSynthesis;
     let currentUtterance = null;
-    let userName = '';
-    let userData = {};
 
     // ==========================================
-    // ВРЕМЯ
+    // СТАТУС
     // ==========================================
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    if (welcomeTime) welcomeTime.textContent = timeStr;
+    function setStatus(text, color = 'green') {
+        const dot = connectionStatus;
+        if (dot) {
+            dot.textContent = text;
+        }
+    }
 
     // ==========================================
     // ДОБАВЛЕНИЕ СООБЩЕНИЙ
@@ -338,14 +267,8 @@
         return msgDiv;
     }
 
-    function updateWelcomeTime() {
-        const now = new Date();
-        const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        if (welcomeTime) welcomeTime.textContent = time;
-    }
-
     // ==========================================
-    // ГОЛОСОВОЙ СИНТЕЗ (TTS)
+    // ГОЛОСОВОЙ ОТВЕТ (TTS)
     // ==========================================
 
     function speakText(text, callback) {
@@ -353,26 +276,20 @@
             if (callback) callback();
             return;
         }
-        if (isSpeaking) {
+        if (currentUtterance) {
             synthesis.cancel();
         }
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ru-RU';
         utterance.rate = 0.9;
-        utterance.pitch = 1.1;
+        utterance.pitch = 1.0;
         utterance.volume = 1;
-        utterance.onstart = () => {
-            isSpeaking = true;
-            updateStatus('Говорит...', 'yellow');
-        };
         utterance.onend = () => {
-            isSpeaking = false;
-            updateStatus('Готов', 'green');
+            currentUtterance = null;
             if (callback) callback();
         };
         utterance.onerror = () => {
-            isSpeaking = false;
-            updateStatus('Готов', 'green');
+            currentUtterance = null;
             if (callback) callback();
         };
         currentUtterance = utterance;
@@ -380,15 +297,16 @@
     }
 
     // ==========================================
-    // РАСПОЗНАВАНИЕ РЕЧИ (Voice Recognition)
+    // РАСПОЗНАВАНИЕ РЕЧИ (Web Speech API)
     // ==========================================
 
     function initRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             addMessage('❌ Ваш браузер не поддерживает голосовой ввод. Используйте текстовое поле.', 'assistant');
-            return;
+            return false;
         }
+
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
         recognition.continuous = true;
@@ -398,10 +316,8 @@
         recognition.onstart = () => {
             isListening = true;
             startBtn.disabled = true;
-            stopBtn.disabled = false;
-            textInput.disabled = true;
-            sendBtn.disabled = true;
-            updateStatus('Слушаю...', 'yellow');
+            stopBtn.classList.remove('hidden');
+            setStatus('🎤 Слушаю...', 'yellow');
             addMessage('🎤 Я слушаю вас...', 'assistant');
         };
 
@@ -430,19 +346,18 @@
 
         recognition.onresult = (event) => {
             let finalText = '';
-            let interimText = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
                     finalText += transcript;
-                } else {
-                    interimText += transcript;
                 }
             }
             if (finalText) {
                 handleUserInput(finalText);
             }
         };
+
+        return true;
     }
 
     // ==========================================
@@ -451,8 +366,8 @@
 
     function startListening() {
         if (!recognition) {
-            initRecognition();
-            if (!recognition) return;
+            const ok = initRecognition();
+            if (!ok) return;
         }
         try {
             recognition.start();
@@ -474,15 +389,13 @@
             } catch (e) {}
         }
         startBtn.disabled = false;
-        stopBtn.disabled = true;
-        textInput.disabled = false;
-        sendBtn.disabled = false;
-        updateStatus('Готов', 'green');
+        stopBtn.classList.add('hidden');
+        setStatus('🟢 Готов', 'green');
         addMessage('⏹ Запись остановлена.', 'assistant');
     }
 
     // ==========================================
-    // ОБРАБОТКА ВВОДА (ГОЛОС / ТЕКСТ)
+    // ОБРАБОТКА ВВОДА
     // ==========================================
 
     function handleUserInput(text) {
@@ -492,271 +405,112 @@
     }
 
     // ==========================================
-    // ОСНОВНАЯ ЛОГИКА ДИАЛОГА
+    // ДИАЛОГ (ПРОСТОЙ ОТВЕТ)
     // ==========================================
-
-    let dialogState = 'greeting';
-    let context = {};
 
     function processDialog(text) {
         const lower = text.toLowerCase().trim();
 
-        // ==========================================
-        // ПЕРВОЕ ПРИВЕТСТВИЕ
-        // ==========================================
-        if (dialogState === 'greeting') {
-            const nameMatch = text.match(/меня зовут\s+(\S+)/i) || text.match(/я\s+(\S+)/i) || text.match(/зовут\s+(\S+)/i);
-            if (nameMatch) {
-                userName = nameMatch[1];
-                userData.name = userName;
-                dialogState = 'ask_work';
-                const response = `Приятно познакомиться, ${userName}! Я — Зеркало. Я помогаю людям находить работу, товары, услуги, решать споры и зарабатывать. Скажи, ты работаешь или ищешь работу?`;
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-            // Если имени нет — просим представиться
-            const response = 'Ассаляму алейкум! Я — Зеркало. Как тебя зовут?';
+        if (lower.includes('привет') || lower.includes('салям')) {
+            const response = 'Ассаляму алейкум! Я рад видеть тебя. Как я могу помочь?';
             addMessage(response, 'assistant');
             speakText(response);
             return;
         }
 
-        // ==========================================
-        // СПРОСИТЬ РАБОТУ
-        // ==========================================
-        if (dialogState === 'ask_work') {
-            if (lower.includes('работаю') || lower.includes('ищу работу') || lower.includes('безработный')) {
-                userData.work = 'ищет работу';
-                dialogState = 'ask_help';
-                const response = 'Понял. Я могу помочь тебе найти работу. Скажи, какая у тебя профессия или специальность?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else if (lower.includes('работа') || lower.includes('работник') || lower.includes('занят')) {
-                userData.work = 'работает';
-                dialogState = 'ask_business';
-                const response = 'Отлично! Ты работаешь. У тебя есть свой бизнес или ты наёмный работник?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else {
-                const response = 'Я не совсем понял. Ты работаешь или ищешь работу?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-        }
-
-        // ==========================================
-        // БИЗНЕС ИЛИ НАЁМ
-        // ==========================================
-        if (dialogState === 'ask_business') {
-            if (lower.includes('бизнес') || lower.includes('свой') || lower.includes('ип') || lower.includes('компания')) {
-                userData.business = true;
-                dialogState = 'offer_business';
-                const response = 'Отлично! Я могу автоматизировать твой бизнес, помочь с лизингом, рекламой и продажами. Хочешь узнать подробнее? Скажи "да" или "нет".';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else {
-                userData.business = false;
-                dialogState = 'offer_work';
-                const response = 'Понял. Я могу помочь тебе найти работу или подработку. Хочешь, я покажу доступные варианты? Скажи "да" или "нет".';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-        }
-
-        // ==========================================
-        // ПРЕДЛОЖЕНИЕ РАБОТЫ
-        // ==========================================
-        if (dialogState === 'offer_work') {
-            if (lower.includes('да') || lower.includes('хочу') || lower.includes('покажи')) {
-                dialogState = 'show_work';
-                const response = 'Отлично! Вот что я могу предложить: есть вакансия сварщика в Павлодаре, зарплата от 150 000 ₸. Также есть заказы на разовые работы — от 5 000 ₸. Хочешь откликнуться? Скажи "да".';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else {
-                dialogState = 'help_other';
-                const response = 'Хорошо. Если передумаешь — просто скажи. Я могу помочь с другими вопросами: оплата, аренда, поиск мастера. Что тебе нужно?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-        }
-
-        // ==========================================
-        // ПОКАЗ РАБОТЫ
-        // ==========================================
-        if (dialogState === 'show_work') {
-            if (lower.includes('да') || lower.includes('хочу') || lower.includes('отклик')) {
-                dialogState = 'show_qr';
-                const response = 'Отлично! Для отклика на вакансию нужно оплатить доступ к контакту работодателя. Это стоит 1 000 ₸. Я сгенерирую QR-код для оплаты. Готов? Скажи "да".';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else {
-                const response = 'Понял. Если передумаешь — скажи "хочу откликнуться".';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-        }
-
-        // ==========================================
-        // ПОКАЗ QR
-        // ==========================================
-        if (dialogState === 'show_qr') {
-            if (lower.includes('да') || lower.includes('готов')) {
-                dialogState = 'qr_generated';
-                const response = 'Отлично! Я генерирую QR-код для оплаты 1 000 ₸. После оплаты я передам тебе контакт работодателя.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                // Показываем QR
-                showQR(1000, 'Оплата доступа к вакансии');
-                return;
-            } else {
-                const response = 'Хорошо. Если передумаешь — скажи "оплатить".';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-        }
-
-        // ==========================================
-        // QR СГЕНЕРИРОВАН
-        // ==========================================
-        if (dialogState === 'qr_generated') {
-            if (lower.includes('спасибо') || lower.includes('оплатил')) {
-                const response = 'Отлично! Я передал твой контакт работодателю. Он свяжется с тобой в ближайшее время. Удачи! Хочешь ещё что-то?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                dialogState = 'greeting';
-                return;
-            } else {
-                const response = 'QR-код уже сгенерирован. Отсканируй его в приложении Kaspi и оплати. После оплаты я передам контакт.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-        }
-
-        // ==========================================
-        // ПОМОЩЬ ДРУГОЕ
-        // ==========================================
-        if (dialogState === 'help_other') {
-            if (lower.includes('оплата') || lower.includes('qr') || lower.includes('платить')) {
-                dialogState = 'show_qr';
-                const response = 'Хорошо. Я могу сгенерировать QR-код для оплаты на любую сумму. Скажи, сколько нужно оплатить?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else if (lower.includes('аренда') || lower.includes('лизинг') || lower.includes('квартира')) {
-                const response = 'Я могу помочь с арендой и лизингом. У нас есть предложения по аренде квартир, машин, оборудования. Что именно тебя интересует?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else if (lower.includes('мастер') || lower.includes('ремонт') || lower.includes('сделать')) {
-                const response = 'Я могу найти мастера. Напиши, что нужно сделать: сантехника, электрика, строительство, ремонт техники?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else if (lower.includes('помощь') || lower.includes('поддержка')) {
-                const response = 'Я всегда рядом. Если у тебя есть вопросы или проблемы — пиши. Я помогу.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else {
-                const response = 'Я могу помочь с работой, оплатой, арендой, поиском мастеров, рекламой. Что тебе нужно?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-        }
-
-        // ==========================================
-        // ПРЕДЛОЖЕНИЕ БИЗНЕСА
-        // ==========================================
-        if (dialogState === 'offer_business') {
-            if (lower.includes('да') || lower.includes('хочу')) {
-                dialogState = 'business_details';
-                const response = 'Отлично! Я могу подключить твой бизнес к системе: автоматизация, учёт, приём платежей, заказы. Расскажи, чем ты занимаешься?';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            } else {
-                const response = 'Хорошо. Если передумаешь — просто скажи "бизнес". Я могу помочь с другими вопросами.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                dialogState = 'help_other';
-                return;
-            }
-        }
-
-        if (dialogState === 'business_details') {
-            const response = 'Понял. Я подготовлю предложение для твоего бизнеса. Хочешь, я скину тебе коммерческое предложение? Напиши "да".';
+        if (lower.includes('имя') || lower.includes('зовут')) {
+            const response = 'Меня зовут Зеркало. Я создан, чтобы помогать людям.';
             addMessage(response, 'assistant');
             speakText(response);
-            dialogState = 'greeting';
             return;
         }
 
-        // ==========================================
-        // ОБЩИЙ ОТВЕТ
-        // ==========================================
-        if (text) {
-            const response = 'Я понял. Я продолжаю слушать. Если нужно — я могу помочь с работой, бизнесом, оплатой или поиском. Что тебе нужно?';
+        if (lower.includes('работа') || lower.includes('найти')) {
+            const response = 'Я могу помочь найти работу. Расскажи, какая у тебя профессия.';
             addMessage(response, 'assistant');
             speakText(response);
-            dialogState = 'help_other';
+            return;
         }
+
+        if (lower.includes('оплата') || lower.includes('qr')) {
+            const response = 'Я могу сгенерировать QR-код для оплаты. Скажи сумму.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            showQR(1000, 'Оплата по запросу');
+            return;
+        }
+
+        if (lower.includes('спасибо')) {
+            const response = 'Обращайся в любое время. Я всегда рядом.';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // Общий ответ
+        const response = 'Я понял. Я продолжаю слушать. Если нужно — я могу помочь с работой, оплатой или поиском. Что тебе нужно?';
+        addMessage(response, 'assistant');
+        speakText(response);
     }
 
     // ==========================================
-    // ПОКАЗ QR-КОДА
+    // QR-КОД
     // ==========================================
 
     function showQR(amount, description) {
+        const qrContainer = document.getElementById('qrContainer');
+        const qrImage = document.getElementById('qrImage');
+        const qrInfo = document.getElementById('qrInfo');
         qrContainer.classList.remove('hidden');
-        qrBtn.classList.remove('hidden');
-        // Генерируем реальный QR через API
         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%20${amount}%20тг%20${description}`;
         qrImage.src = qrApiUrl;
         qrInfo.textContent = `💳 Оплата: ${amount} ₸ | ${description}`;
-        addMessage(`💳 QR-код для оплаты ${amount} ₸ сгенерирован. Отсканируйте в приложении Kaspi.`, 'assistant');
+        addMessage(`💳 QR-код для оплаты ${amount} ₸ сгенерирован.`, 'assistant');
     }
 
     // ==========================================
-    // УПРАВЛЕНИЕ ФАЙЛАМИ
+    // ТЕСТ МИКРОФОНА
     // ==========================================
 
-    fileInput.addEventListener('change', function(e) {
-        const files = e.target.files;
-        if (files.length > 0) {
-            const fileNames = Array.from(files).map(f => f.name).join(', ');
-            fileStatus.textContent = `📎 Загружено: ${fileNames}`;
-            fileStatus.classList.remove('hidden');
-            addMessage(`📎 Файлы загружены: ${fileNames}`, 'user');
-            const response = `Файлы получены. Я их сохранил. Если нужно, я могу передать их кому-то или обработать.`;
-            addMessage(response, 'assistant');
-            speakText(response);
+    testBtn.addEventListener('click', function() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            addMessage('❌ Ваш браузер не поддерживает микрофон.', 'assistant');
+            return;
         }
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => {
+                addMessage('✅ Микрофон работает! Нажмите «🎤 Говорить» для записи.', 'assistant');
+                setStatus('🟢 Микрофон ОК', 'green');
+            })
+            .catch((err) => {
+                console.error('Ошибка доступа к микрофону:', err);
+                addMessage('❌ Не удалось получить доступ к микрофону. Разрешите доступ в браузере.', 'assistant');
+                setStatus('🔴 Микрофон НЕТ', 'red');
+            });
     });
 
     // ==========================================
-    // QR-КОД ПО ЗАПРОСУ
+    // КНОПКИ ЗАПУСКА / ОСТАНОВКИ
     // ==========================================
 
-    qrBtn.addEventListener('click', function() {
-        const amount = prompt('Введите сумму для оплаты (в ₸):', '1000');
-        if (amount && !isNaN(amount) && parseInt(amount) > 0) {
-            showQR(parseInt(amount), 'Оплата по запросу');
-        } else {
-            alert('Введите корректную сумму');
+    startBtn.addEventListener('click', function() {
+        // Проверяем доступ к микрофону
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            addMessage('❌ Ваш браузер не поддерживает микрофон. Используйте текстовое поле.', 'assistant');
+            return;
         }
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => {
+                startListening();
+            })
+            .catch((err) => {
+                console.error('Ошибка доступа к микрофону:', err);
+                addMessage('❌ Не удалось получить доступ к микрофону. Разрешите доступ в браузере.', 'assistant');
+            });
+    });
+
+    stopBtn.addEventListener('click', function() {
+        stopListening();
     });
 
     // ==========================================
@@ -778,72 +532,25 @@
     });
 
     // ==========================================
-    // УПРАВЛЕНИЕ СТАТУСОМ
-    // ==========================================
-
-    function updateStatus(text, color = 'green') {
-        const dot = connectionStatus;
-        if (dot) {
-            dot.textContent = text;
-            const dotSpan = dot.querySelector('.dot');
-            if (dotSpan) {
-                dotSpan.className = `dot ${color}`;
-            }
-        }
-    }
-
-    // ==========================================
-    // КНОПКИ ЗАПУСКА/ОСТАНОВКИ
-    // ==========================================
-
-    startBtn.addEventListener('click', function() {
-        // Проверяем доступ к микрофону
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            addMessage('❌ Ваш браузер не поддерживает микрофон. Используйте текстовое поле.', 'assistant');
-            return;
-        }
-        // Запрашиваем доступ
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(() => {
-                startListening();
-                addMessage('🎤 Микрофон активирован. Говорите.', 'assistant');
-            })
-            .catch((err) => {
-                console.error('Ошибка доступа к микрофону:', err);
-                addMessage('❌ Не удалось получить доступ к микрофону. Разрешите доступ в браузере.', 'assistant');
-            });
-    });
-
-    stopBtn.addEventListener('click', function() {
-        stopListening();
-    });
-
-    // ==========================================
     // ИНИЦИАЛИЗАЦИЯ
     // ==========================================
 
-    // Инициализируем распознавание
+    // Обновляем время приветствия
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const welcomeTime = document.getElementById('welcomeTime');
+    if (welcomeTime) welcomeTime.textContent = timeStr;
+
+    // Инициализируем распознавание (без автозапуска)
     initRecognition();
 
     // Приветствие при загрузке
     setTimeout(() => {
-        const response = '🪞 Ассаляму алейкум! Я — Зеркало. Как тебя зовут?';
-        addMessage(response, 'assistant');
-        speakText(response);
+        addMessage('🪞 Я готов слушать. Нажмите «🎤 Говорить» или напишите текст.', 'assistant');
     }, 1000);
 
-    // Обновляем время
-    updateWelcomeTime();
-
-    // ==========================================
-    // КОНСОЛЬ
-    // ==========================================
-
     console.log('🪞 Зеркало загружено');
-    console.log('📱 Голосовой и текстовый интерфейс');
-    console.log('💳 QR-код готов');
-    console.log('📎 Загрузка файлов работает');
+    console.log('📱 Голосовой ввод готов');
 </script>
-
 </body>
 </html>
