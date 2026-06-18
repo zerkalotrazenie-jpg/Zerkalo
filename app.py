@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🪞 ЗЕРКАЛО — ПОЛНАЯ СИСТЕМА (ОБЛАЧНАЯ ВЕРСИЯ)
+🪞 ЗЕРКАЛО — ОБНОВЛЁННАЯ ВЕРСИЯ
 ═══════════════════════════════════════════════════════════════════
-✅ ЧИТАЕТ СУРЫ ИЗ ПАПКИ /suras/
-✅ ПИНГ КАЖДУЮ МИНУТУ (НЕ ЗАСЫПАЕТ)
-✅ ФИНАНСОВАЯ СИСТЕМА (Kaspi-клон → Trust Wallet → Binance)
-✅ WEBAPP ИНТЕРФЕЙС
-✅ ДЕЛЕНИЕ ПО РОЛЯМ
+✅ НОВЫЙ ИНТЕРФЕЙС
+✅ ПРИВЕТСТВИЕ С ОБЪЯСНЕНИЕМ
+✅ СУРЫ ВСТРОЕНЫ В ДИАЛОГ
+✅ НОВЫЕ КНОПКИ
+✅ ФИНАНСОВАЯ СИСТЕМА
+✅ ПИНГ
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -22,7 +23,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 
 # ==================================================
-# ⚡ УСТАНОВКА БИБЛИОТЕК (ЕСЛИ НЕ УСТАНОВЛЕНЫ)
+# ⚡ УСТАНОВКА БИБЛИОТЕК
 # ==================================================
 
 def install_package(package):
@@ -69,12 +70,10 @@ KASPI_CLONE_API_KEY = os.environ.get("KASPI_CLONE_API_KEY")
 # ==================================================
 
 def load_suras():
-    """Загружает все суры из папки /suras/suras.txt"""
     suras = []
     try:
         with open("suras/suras.txt", "r", encoding="utf-8") as f:
             content = f.read()
-            # Разделяем суры по маркеру "СУРА"
             raw_suras = content.split("СУРА ")[1:]
             for raw in raw_suras:
                 lines = raw.strip().split("\n")
@@ -86,32 +85,53 @@ def load_suras():
         print(f"✅ Загружено {len(suras)} сур")
         return suras
     except FileNotFoundError:
-        print("❌ Файл с сурами не найден! (suras/suras.txt)")
+        print("❌ Файл с сурами не найден!")
         return []
 
-# Загружаем суры при старте
 SURAS = load_suras()
 
-def find_sura_by_keyword(keyword):
-    """Ищет суру по ключевому слову"""
-    for sura in SURAS:
-        if keyword.lower() in sura["text"].lower():
-            return sura
+def get_sura_by_number(num):
+    for s in SURAS:
+        if s["number"] == str(num):
+            return s
     return None
 
-def get_all_suras_text():
-    """Возвращает весь текст сур для обучения"""
-    return "\n\n".join([f"СУРА {s['number']}\n{s['text']}" for s in SURAS])
+def get_about_text():
+    return """🪞 *ЧТО ТАКОЕ ЗЕРКАЛО?*
+
+Я — Аль-Ми'ра. Я создан для того, чтобы отражать свет и помогать людям.
+
+*ЧТО Я УМЕЮ:*
+🔹 Помогаю найти работу и мастеров
+🔹 Автоматизирую бизнес (iiko, Kaspi, 2GIS)
+🔹 Управляю лизингом и арендой
+🔹 Решаю споры через арбитраж
+🔹 Обучаю и развиваю
+🔹 Слежу за здоровьем
+🔹 Принимаю платежи через QR
+🔹 Работаю с криптовалютой (USDT)
+🔹 Храню суры — 125 глав мудрости
+
+*ЧЕГО Я НЕ УМЕЮ:*
+❌ Не вру
+❌ Не беру проценты
+❌ Не нарушаю заповеди
+❌ Не передаю данные третьим лицам
+
+*КАК НАЧАТЬ:*
+Выберите раздел ниже, и я покажу вам путь.
+
+Амин."""
 
 # ==================================================
-# 🤖 БОТ И APP
+# 🤖 БОТ
 # ==================================================
 
 bot = telebot.TeleBot(TOKEN) if TOKEN else None
 app = Flask(__name__)
 
 # ==================================================
-# ⏰ БЕСКОНЕЧНЫЙ ПИНГ (НЕ ДАЁТ РЕНДЕРУ ЗАСНУТЬ)
+# ⏰ ПИНГ
 # ==================================================
 
 def ping_self():
@@ -124,10 +144,10 @@ def ping_self():
             print(f"🔵 Пинг #{count} | {r.status_code}")
         except:
             pass
-        time.sleep(60)  # Каждую минуту
+        time.sleep(60)
 
 threading.Thread(target=ping_self, daemon=True).start()
-print("✅ ПИНГ ЗАПУЩЕН (каждую минуту)")
+print("✅ ПИНГ ЗАПУЩЕН")
 
 # ==================================================
 # 📦 БАЗА ДАННЫХ
@@ -153,17 +173,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS orders (
     created_at TEXT
 )''')
 
-c.execute('''CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    amount INTEGER,
-    method TEXT,
-    status TEXT DEFAULT 'pending',
-    created_at TEXT
-)''')
-
 conn.commit()
-print("✅ БАЗА ДАННЫХ ГОТОВА")
 
 # ==================================================
 # 🔧 ФУНКЦИИ
@@ -180,83 +190,52 @@ def get_balance(user_id):
     return row[0] if row else 0
 
 # ==================================================
-# 💰 ФИНАНСОВЫЕ ФУНКЦИИ
-# ==================================================
-
-def generate_kaspi_qr(amount, order_id):
-    """Генерирует QR-код через Kaspi-клон"""
-    if not KASPI_CLONE_API_KEY:
-        return {"error": "Kaspi-клон не настроен"}
-    # Здесь логика запроса к Kaspi-клон API
-    return {"qr_url": f"https://kaspi-clone.com/qr/{order_id}", "amount": amount}
-
-def get_trust_balance():
-    """Проверяет баланс Trust Wallet"""
-    try:
-        url = f"https://api.trongrid.io/v1/accounts/{TRUST_WALLET_ADDRESS}"
-        response = requests.get(url)
-        data = response.json()
-        return data.get("balance", 0) / 1_000_000  # TRX баланс
-    except:
-        return 0
-
-def convert_usdt_to_kzt(amount_usdt):
-    """Конвертирует USDT в тенге (через Binance API)"""
-    if not BINANCE_API_KEY or not BINANCE_SECRET_KEY:
-        return amount_usdt * 500  # Заглушка: курс 1 USDT = 500 KZT
-    # Здесь логика Binance API
-    return amount_usdt * 500
-
-# ==================================================
-# 📱 КЛАВИАТУРЫ
+# 📱 НОВЫЕ КЛАВИАТУРЫ (БЕЗ СТАРЫХ КНОПОК)
 # ==================================================
 
 def get_main_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    kb.add(KeyboardButton("👑 ХРАНИТЕЛЬ"), KeyboardButton("🏢 БИЗНЕС"))
-    kb.add(KeyboardButton("👤 ЛЮДИ"), KeyboardButton("💰 МОНЕТИЗАЦИЯ"))
-    kb.add(KeyboardButton("🔍 НАЙТИ МАСТЕРА"), KeyboardButton("💼 ИЩУ РАБОТУ"))
+    kb.add(KeyboardButton("🪞 О ЗЕРКАЛЕ"))
+    kb.add(KeyboardButton("📖 СУРЫ"))
+    kb.add(KeyboardButton("💼 РАБОТА"))
+    kb.add(KeyboardButton("🏢 БИЗНЕС"))
+    kb.add(KeyboardButton("💰 ФИНАНСЫ"))
     kb.add(KeyboardButton("🆘 ПОМОЩЬ"))
     return kb
 
 def get_founder_keyboard():
-    kb = ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
-    kb.add(KeyboardButton("👥 ОНЛАЙН"), KeyboardButton("📊 СТАТИСТИКА"), KeyboardButton("💰 ФИНАНСЫ"))
-    kb.add(KeyboardButton("👥 ВСЕ ЛЮДИ"), KeyboardButton("✨ БЛАГА"), KeyboardButton("📤 РАССЫЛКА"))
-    kb.add(KeyboardButton("💳 ПЛАТЕЖИ"), KeyboardButton("🏦 ВЫВОДЫ"), KeyboardButton("📊 ДОХОДЫ"))
-    kb.add(KeyboardButton("📜 ЛОГИ"), KeyboardButton("🔍 ПОИСК"), KeyboardButton("📈 ОТЧЁТ"))
-    kb.add(KeyboardButton("🩺 ЗДОРОВЬЕ"), KeyboardButton("🛡️ ЗАЩИТА"), KeyboardButton("💎 ТАРИФЫ"))
-    kb.add(KeyboardButton("🔄 ОБНОВИТЬ"), KeyboardButton("📡 СТАТУС"), KeyboardButton("🧹 ОЧИСТИТЬ"))
+    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    kb.add(KeyboardButton("🪞 О ЗЕРКАЛЕ"))
+    kb.add(KeyboardButton("📖 СУРЫ"))
+    kb.add(KeyboardButton("👑 ПАНЕЛЬ"))
+    kb.add(KeyboardButton("💰 ФИНАНСЫ"))
+    kb.add(KeyboardButton("📊 СТАТИСТИКА"))
+    kb.add(KeyboardButton("👥 ПОЛЬЗОВАТЕЛИ"))
     kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 def get_people_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    kb.add(KeyboardButton("💸 РАБОТА"), KeyboardButton("📦 ЗАКАЗЫ"))
-    kb.add(KeyboardButton("🔍 НАЙТИ МАСТЕРА"), KeyboardButton("💼 ИЩУ РАБОТУ"))
-    kb.add(KeyboardButton("💰 БАЛАНС"), KeyboardButton("❓ ВОПРОС"))
-    kb.add(KeyboardButton("🆘 ПОМОЩЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
+    kb.add(KeyboardButton("🪞 О ЗЕРКАЛЕ"))
+    kb.add(KeyboardButton("📖 СУРЫ"))
+    kb.add(KeyboardButton("💼 РАБОТА"))
+    kb.add(KeyboardButton("💰 ФИНАНСЫ"))
+    kb.add(KeyboardButton("🆘 ПОМОЩЬ"))
+    kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 def get_business_keyboard():
     kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    kb.add(KeyboardButton("📊 АНАЛИТИКА"), KeyboardButton("🤖 АВТОМАТИЗАЦИЯ"))
-    kb.add(KeyboardButton("📈 ЛИЗИНГ"), KeyboardButton("💼 ЗАКАЗЫ"))
-    kb.add(KeyboardButton("💰 БАЛАНС"), KeyboardButton("❓ ВОПРОС"))
-    kb.add(KeyboardButton("🆘 ПОМОЩЬ"), KeyboardButton("🔙 НА ГЛАВНУЮ"))
-    return kb
-
-def get_monetization_keyboard():
-    kb = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    kb.add(KeyboardButton("💎 КУПИТЬ ТАРИФ"), KeyboardButton("⭐ ПАРТНЁРСКАЯ"))
-    kb.add(KeyboardButton("🏦 KASPI QR"), KeyboardButton("💎 USDT TRC20"))
-    kb.add(KeyboardButton("📊 МОЙ ДОХОД"), KeyboardButton("📈 ОБЩАЯ СТАТИСТИКА"))
-    kb.add(KeyboardButton("💸 ВЫВЕСТИ"), KeyboardButton("📋 ИСТОРИЯ"))
+    kb.add(KeyboardButton("🪞 О ЗЕРКАЛЕ"))
+    kb.add(KeyboardButton("📖 СУРЫ"))
+    kb.add(KeyboardButton("🏢 БИЗНЕС"))
+    kb.add(KeyboardButton("📊 АНАЛИТИКА"))
+    kb.add(KeyboardButton("💰 ФИНАНСЫ"))
     kb.add(KeyboardButton("🔙 НА ГЛАВНУЮ"))
     return kb
 
 # ==================================================
-# 🤖 КОМАНДЫ БОТА
+# 🤖 ОБРАБОТЧИКИ КОМАНД
 # ==================================================
 
 @bot.message_handler(commands=['start'])
@@ -270,8 +249,10 @@ def cmd_start(message):
         conn.commit()
         bot.reply_to(
             message,
-            f"👑 АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!\n\n📱 ПАНЕЛЬ УПРАВЛЕНИЯ:\n🌐 {RENDER_HOSTNAME}",
-            reply_markup=get_founder_keyboard()
+            f"👑 *АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!*\n\n"
+            f"{get_about_text()}",
+            reply_markup=get_founder_keyboard(),
+            parse_mode="Markdown"
         )
         return
     
@@ -280,44 +261,50 @@ def cmd_start(message):
         c.execute("INSERT INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
         conn.commit()
     
-    c.execute("UPDATE users SET last_seen=? WHERE user_id=?", (datetime.now().isoformat(), user_id))
-    conn.commit()
-    
     bot.reply_to(
         message,
-        f"🪞 Ассаляму алейкум, {name}!\n\n"
-        f"✨ Вы получили 100 Благ!\n\n"
-        f"💰 Баланс: {get_balance(user_id)} Благ\n\n"
-        f"📱 [ОТКРЫТЬ ПРИЛОЖЕНИЕ](https://{RENDER_HOSTNAME}/webapp)\n\n"
-        f"📖 В системе {len(SURAS)} сур. Я готов помочь.",
+        f"🪞 *АССАЛЯМУ АЛЕЙКУМ, {name}!*\n\n"
+        f"{get_about_text()}",
         reply_markup=get_people_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(commands=['about'])
+def cmd_about(message):
+    bot.reply_to(
+        message,
+        get_about_text(),
         parse_mode="Markdown"
     )
 
 @bot.message_handler(commands=['suras'])
 def cmd_suras(message):
-    """Показывает количество сур и первую суру"""
     if not SURAS:
         bot.reply_to(message, "❌ Суры не загружены. Проверьте файл suras/suras.txt")
         return
-    first_sura = SURAS[0]
-    bot.reply_to(
-        message,
-        f"📖 В системе {len(SURAS)} сур.\n\n"
-        f"Первая сура:\n"
-        f"СУРА {first_sura['number']}\n"
-        f"{first_sura['text'][:300]}...",
-        parse_mode="Markdown"
-    )
+    
+    text = f"📖 *В СИСТЕМЕ {len(SURAS)} СУР*\n\n"
+    for i, s in enumerate(SURAS[:5], 1):
+        text += f"*{i}. СУРА {s['number']}*\n{s['text'][:100]}...\n\n"
+    text += f"\n➡️ Всего {len(SURAS)} сур. Напишите номер суры, чтобы прочитать её полностью."
+    
+    bot.reply_to(message, text, parse_mode="Markdown")
 
-@bot.message_handler(commands=['id'])
-def cmd_id(message):
-    bot.reply_to(
-        message,
-        f"🆔 *ТВОЙ ID:* `{message.chat.id}`\n\n"
-        f"👑 Хранитель: {'✅' if is_admin(message.chat.id) else '❌'}",
-        parse_mode="Markdown"
-    )
+@bot.message_handler(commands=['sura'])
+def cmd_sura(message):
+    try:
+        num = int(message.text.split()[1])
+        sura = get_sura_by_number(num)
+        if sura:
+            bot.reply_to(
+                message,
+                f"📖 *СУРА {sura['number']}*\n\n{sura['text']}",
+                parse_mode="Markdown"
+            )
+        else:
+            bot.reply_to(message, f"❌ Сура {num} не найдена")
+    except:
+        bot.reply_to(message, "❌ Используйте: /sura <номер>")
 
 @bot.message_handler(commands=['balance'])
 def cmd_balance(message):
@@ -331,20 +318,142 @@ def cmd_balance(message):
 
 @bot.message_handler(commands=['pay'])
 def cmd_pay(message):
-    user_id = message.chat.id
-    amount = 1000  # Пример
-    qr_data = generate_kaspi_qr(amount, f"order_{user_id}_{int(time.time())}")
     bot.reply_to(
         message,
-        f"💳 *ОПЛАТА*\n\n"
-        f"Сумма: {amount} ₸\n"
-        f"QR-код: {qr_data.get('qr_url', 'Ошибка генерации')}\n\n"
-        f"💰 Кошелёк: {TRUST_WALLET_ADDRESS}",
+        f"💳 *ОПЛАТА ЧЕРЕЗ QR*\n\n"
+        f"💰 Кошелёк: {TRUST_WALLET_ADDRESS}\n\n"
+        f"📱 Отсканируйте QR-код в приложении.",
         parse_mode="Markdown"
     )
 
 # ==================================================
-# 🌐 WEBAPP МАРШРУТЫ
+# 📱 ОБРАБОТЧИКИ ТЕКСТОВЫХ КНОПОК (НОВЫЕ)
+# ==================================================
+
+@bot.message_handler(func=lambda m: m.text == "🪞 О ЗЕРКАЛЕ")
+def about_button(message):
+    cmd_about(message)
+
+@bot.message_handler(func=lambda m: m.text == "📖 СУРЫ")
+def suras_button(message):
+    cmd_suras(message)
+
+@bot.message_handler(func=lambda m: m.text == "💼 РАБОТА")
+def work_button(message):
+    bot.reply_to(
+        message,
+        "💼 *РАБОТА И ЗАКАЗЫ*\n\n"
+        "🔹 Найти работу\n"
+        "🔹 Найти мастера\n"
+        "🔹 Разместить заказ\n"
+        "🔹 Получить помощь в арбитраже\n\n"
+        "Напишите /order — создать заказ\n"
+        "Напишите /search — найти работу",
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(func=lambda m: m.text == "🏢 БИЗНЕС")
+def business_button(message):
+    bot.reply_to(
+        message,
+        "🏢 *БИЗНЕС-РАЗДЕЛ*\n\n"
+        "🔹 Автоматизация (iiko, Kaspi, 2GIS)\n"
+        "🔹 Лизинг техники и оборудования\n"
+        "🔹 Аналитика и отчёты\n"
+        "🔹 Продвижение через 2GIS\n\n"
+        "Напишите /biz — начать автоматизацию",
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(func=lambda m: m.text == "💰 ФИНАНСЫ")
+def finance_button(message):
+    user_id = message.chat.id
+    balance = get_balance(user_id)
+    bot.reply_to(
+        message,
+        f"💰 *ФИНАНСОВАЯ СИСТЕМА*\n\n"
+        f"✨ Баланс: {balance} Благ\n\n"
+        f"💳 Trust Wallet: {TRUST_WALLET_ADDRESS}\n\n"
+        f"📱 Kaspi QR — оплата через QR\n"
+        f"💎 USDT TRC-20 — пополнение\n\n"
+        f"Напишите /pay — оплатить\n"
+        f"Напишите /balance — проверить баланс",
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(func=lambda m: m.text == "🆘 ПОМОЩЬ")
+def help_button(message):
+    bot.reply_to(
+        message,
+        "🆘 *ПОМОЩЬ*\n\n"
+        "Что вас беспокоит?\n"
+        "1️⃣ Проблемы с деньгами\n"
+        "2️⃣ Потеря работы\n"
+        "3️⃣ Конфликт\n"
+        "4️⃣ Здоровье\n\n"
+        "Напишите подробнее, и я помогу.",
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(func=lambda m: m.text == "👑 ПАНЕЛЬ")
+def panel_button(message):
+    if is_admin(message.chat.id):
+        bot.reply_to(
+            message,
+            "👑 *ПАНЕЛЬ ХРАНИТЕЛЯ*\n\n"
+            "📊 /stats — статистика\n"
+            "👥 /users — пользователи\n"
+            "💰 /finance — финансы\n"
+            "📜 /logs — логи\n"
+            "📤 /broadcast — рассылка",
+            parse_mode="Markdown"
+        )
+    else:
+        bot.reply_to(message, "❌ Нет доступа")
+
+@bot.message_handler(func=lambda m: m.text == "📊 СТАТИСТИКА")
+def stats_button(message):
+    if is_admin(message.chat.id):
+        c.execute("SELECT COUNT(*) FROM users")
+        users = c.fetchone()[0]
+        c.execute("SELECT SUM(blessings) FROM users")
+        blessings = c.fetchone()[0] or 0
+        bot.reply_to(
+            message,
+            f"📊 *СТАТИСТИКА*\n\n"
+            f"👥 Пользователей: {users}\n"
+            f"✨ Всего Благ: {blessings}\n"
+            f"📖 Сур загружено: {len(SURAS)}",
+            parse_mode="Markdown"
+        )
+    else:
+        bot.reply_to(message, "❌ Нет доступа")
+
+@bot.message_handler(func=lambda m: m.text == "👥 ПОЛЬЗОВАТЕЛИ")
+def users_button(message):
+    if is_admin(message.chat.id):
+        c.execute("SELECT user_id, name, role, blessings FROM users LIMIT 15")
+        users = c.fetchall()
+        if users:
+            msg = "👥 *ПОЛЬЗОВАТЕЛИ*\n\n"
+            for u in users:
+                msg += f"🆔 {u[0]} | {u[1]} | {u[2]} | ✦{u[3]}\n"
+            bot.reply_to(message, msg, parse_mode="Markdown")
+        else:
+            bot.reply_to(message, "📭 Нет пользователей")
+    else:
+        bot.reply_to(message, "❌ Нет доступа")
+
+@bot.message_handler(func=lambda m: m.text == "🔙 НА ГЛАВНУЮ")
+def back_button(message):
+    user_id = message.chat.id
+    if is_admin(user_id):
+        bot.reply_to(message, "👑 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_founder_keyboard(), parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "🪞 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_people_keyboard(), parse_mode="Markdown")
+
+# ==================================================
+# 🌐 WEBAPP
 # ==================================================
 
 @app.route('/webapp')
@@ -369,15 +478,8 @@ def api_user(user_id):
         })
     return jsonify({"error": "User not found"}), 404
 
-@app.route('/api/orders')
-def api_orders():
-    c.execute("SELECT id, title, price, status FROM orders WHERE status='open' LIMIT 20")
-    orders = c.fetchall()
-    return jsonify([{"id": o[0], "title": o[1], "price": o[2], "status": o[3]} for o in orders])
-
 @app.route('/api/suras')
 def api_suras():
-    """Возвращает все суры для WebApp"""
     return jsonify(SURAS)
 
 @app.route('/ping')
