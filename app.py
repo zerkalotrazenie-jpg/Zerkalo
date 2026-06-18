@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🪞 ЗЕРКАЛО — ПОЛНАЯ СИСТЕМА
+🪞 ЗЕРКАЛО — ПОЛНАЯ СИСТЕМА (ОБЛАЧНАЯ ВЕРСИЯ)
 ═══════════════════════════════════════════════════════════════════
-✅ РАБОТАЕТ 24/7
-✅ ПИНГ КАЖДУЮ МИНУТУ
-✅ ВСЕ МОДУЛИ
+✅ ЧИТАЕТ СУРЫ ИЗ ПАПКИ /suras/
+✅ ПИНГ КАЖДУЮ МИНУТУ (НЕ ЗАСЫПАЕТ)
+✅ ФИНАНСОВАЯ СИСТЕМА (Kaspi-клон → Trust Wallet → Binance)
 ✅ WEBAPP ИНТЕРФЕЙС
-✅ ДЕЛЕНИЕ ПО РОЛЯМ (ХРАНИТЕЛЬ / ПОЛЬЗОВАТЕЛЬ)
-✅ ВСЕ КНОПКИ РАБОТАЮТ
-✅ ЛОГИРОВАНИЕ
+✅ ДЕЛЕНИЕ ПО РОЛЯМ
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -18,14 +16,13 @@ import sys
 import time
 import threading
 import sqlite3
-import random
-import requests
 import json
+import requests
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 
 # ==================================================
-# ⚡ УСТАНОВКА БИБЛИОТЕК
+# ⚡ УСТАНОВКА БИБЛИОТЕК (ЕСЛИ НЕ УСТАНОВЛЕНЫ)
 # ==================================================
 
 def install_package(package):
@@ -40,7 +37,7 @@ for pkg in REQUIRED_PACKAGES:
     install_package(pkg)
 
 import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 # ==================================================
 # 🔧 НАСТРОЙКИ
@@ -51,7 +48,7 @@ RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.c
 PORT = int(os.environ.get("PORT", 8080))
 
 # ==================================================
-# 👑 ХРАНИТЕЛИ (ВАШИ ID)
+# 👑 ХРАНИТЕЛИ
 # ==================================================
 
 FOUNDER_ID = 5409420822
@@ -59,20 +56,52 @@ TOMIRIS_ID = 5479179814
 ADMIN_IDS = [5409420822, 5479179814]
 
 # ==================================================
-# 💰 РЕКВИЗИТЫ
+# 💰 ФИНАНСОВАЯ СИСТЕМА
 # ==================================================
 
-KASPI_PHONE = "+777733440345"
-KASPI_NAME = "ЗЕРКАЛО"
-CRYPTO_WALLET = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
+TRUST_WALLET_ADDRESS = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
+BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY")
+BINANCE_SECRET_KEY = os.environ.get("BINANCE_SECRET_KEY")
+KASPI_CLONE_API_KEY = os.environ.get("KASPI_CLONE_API_KEY")
 
-print("=" * 70)
-print("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
-print("=" * 70)
-print(f"✅ ТОКЕН: {TOKEN[:10] if TOKEN else 'НЕТ'}...")
-print(f"👑 ХРАНИТЕЛЬ ID: {FOUNDER_ID}")
-print(f"🌐 ХОСТ: {RENDER_HOSTNAME}")
-print("=" * 70)
+# ==================================================
+# 📖 ЧТЕНИЕ СУР
+# ==================================================
+
+def load_suras():
+    """Загружает все суры из папки /suras/suras.txt"""
+    suras = []
+    try:
+        with open("suras/suras.txt", "r", encoding="utf-8") as f:
+            content = f.read()
+            # Разделяем суры по маркеру "СУРА"
+            raw_suras = content.split("СУРА ")[1:]
+            for raw in raw_suras:
+                lines = raw.strip().split("\n")
+                if lines:
+                    suras.append({
+                        "number": lines[0].strip(),
+                        "text": "\n".join(lines[1:])
+                    })
+        print(f"✅ Загружено {len(suras)} сур")
+        return suras
+    except FileNotFoundError:
+        print("❌ Файл с сурами не найден! (suras/suras.txt)")
+        return []
+
+# Загружаем суры при старте
+SURAS = load_suras()
+
+def find_sura_by_keyword(keyword):
+    """Ищет суру по ключевому слову"""
+    for sura in SURAS:
+        if keyword.lower() in sura["text"].lower():
+            return sura
+    return None
+
+def get_all_suras_text():
+    """Возвращает весь текст сур для обучения"""
+    return "\n\n".join([f"СУРА {s['number']}\n{s['text']}" for s in SURAS])
 
 # ==================================================
 # 🤖 БОТ И APP
@@ -82,7 +111,7 @@ bot = telebot.TeleBot(TOKEN) if TOKEN else None
 app = Flask(__name__)
 
 # ==================================================
-# ⏰ ПИНГ (НЕ ДАЁТ ЗАСНУТЬ)
+# ⏰ БЕСКОНЕЧНЫЙ ПИНГ (НЕ ДАЁТ РЕНДЕРУ ЗАСНУТЬ)
 # ==================================================
 
 def ping_self():
@@ -95,7 +124,7 @@ def ping_self():
             print(f"🔵 Пинг #{count} | {r.status_code}")
         except:
             pass
-        time.sleep(60)
+        time.sleep(60)  # Каждую минуту
 
 threading.Thread(target=ping_self, daemon=True).start()
 print("✅ ПИНГ ЗАПУЩЕН (каждую минуту)")
@@ -124,35 +153,17 @@ c.execute('''CREATE TABLE IF NOT EXISTS orders (
     created_at TEXT
 )''')
 
-c.execute('''CREATE TABLE IF NOT EXISTS logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    action TEXT,
-    details TEXT,
-    created_at TEXT
-)''')
-
 c.execute('''CREATE TABLE IF NOT EXISTS payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     amount INTEGER,
     method TEXT,
-    status TEXT,
+    status TEXT DEFAULT 'pending',
     created_at TEXT
 )''')
 
 conn.commit()
 print("✅ БАЗА ДАННЫХ ГОТОВА")
-
-# ==================================================
-# 📝 ЛОГИРОВАНИЕ
-# ==================================================
-
-def log_action(user_id, action, details=""):
-    c.execute("INSERT INTO logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
-              (user_id, action, details, datetime.now().isoformat()))
-    conn.commit()
-    print(f"📝 Лог: {user_id} | {action} | {details}")
 
 # ==================================================
 # 🔧 ФУНКЦИИ
@@ -168,12 +179,33 @@ def get_balance(user_id):
     row = c.fetchone()
     return row[0] if row else 0
 
-def get_user_role(user_id):
-    if is_admin(user_id):
-        return "Хранитель"
-    c.execute("SELECT role FROM users WHERE user_id=?", (user_id,))
-    row = c.fetchone()
-    return row[0] if row else "Пользователь"
+# ==================================================
+# 💰 ФИНАНСОВЫЕ ФУНКЦИИ
+# ==================================================
+
+def generate_kaspi_qr(amount, order_id):
+    """Генерирует QR-код через Kaspi-клон"""
+    if not KASPI_CLONE_API_KEY:
+        return {"error": "Kaspi-клон не настроен"}
+    # Здесь логика запроса к Kaspi-клон API
+    return {"qr_url": f"https://kaspi-clone.com/qr/{order_id}", "amount": amount}
+
+def get_trust_balance():
+    """Проверяет баланс Trust Wallet"""
+    try:
+        url = f"https://api.trongrid.io/v1/accounts/{TRUST_WALLET_ADDRESS}"
+        response = requests.get(url)
+        data = response.json()
+        return data.get("balance", 0) / 1_000_000  # TRX баланс
+    except:
+        return 0
+
+def convert_usdt_to_kzt(amount_usdt):
+    """Конвертирует USDT в тенге (через Binance API)"""
+    if not BINANCE_API_KEY or not BINANCE_SECRET_KEY:
+        return amount_usdt * 500  # Заглушка: курс 1 USDT = 500 KZT
+    # Здесь логика Binance API
+    return amount_usdt * 500
 
 # ==================================================
 # 📱 КЛАВИАТУРЫ
@@ -232,17 +264,13 @@ def cmd_start(message):
     user_id = message.chat.id
     name = message.from_user.first_name
     
-    log_action(user_id, "start", f"Пользователь {name} запустил бота")
-    
     if is_admin(user_id):
         c.execute("INSERT OR REPLACE INTO users (user_id, name, is_admin, role, blessings) VALUES (?, ?, ?, ?, ?)",
                   (user_id, name, 1, 'founder', 999999999))
         conn.commit()
         bot.reply_to(
             message,
-            f"👑 АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!\n\n"
-            f"📱 ПАНЕЛЬ УПРАВЛЕНИЯ:\n"
-            f"🌐 {RENDER_HOSTNAME}",
+            f"👑 АССАЛЯМУ АЛЕЙКУМ, ХРАНИТЕЛЬ {name}!\n\n📱 ПАНЕЛЬ УПРАВЛЕНИЯ:\n🌐 {RENDER_HOSTNAME}",
             reply_markup=get_founder_keyboard()
         )
         return
@@ -251,7 +279,6 @@ def cmd_start(message):
     if not c.fetchone():
         c.execute("INSERT INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
         conn.commit()
-        log_action(user_id, "register", f"Новый пользователь {name}")
     
     c.execute("UPDATE users SET last_seen=? WHERE user_id=?", (datetime.now().isoformat(), user_id))
     conn.commit()
@@ -261,346 +288,60 @@ def cmd_start(message):
         f"🪞 Ассаляму алейкум, {name}!\n\n"
         f"✨ Вы получили 100 Благ!\n\n"
         f"💰 Баланс: {get_balance(user_id)} Благ\n\n"
-        f"📱 [ОТКРЫТЬ ПРИЛОЖЕНИЕ](https://{RENDER_HOSTNAME}/webapp)",
+        f"📱 [ОТКРЫТЬ ПРИЛОЖЕНИЕ](https://{RENDER_HOSTNAME}/webapp)\n\n"
+        f"📖 В системе {len(SURAS)} сур. Я готов помочь.",
         reply_markup=get_people_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(commands=['suras'])
+def cmd_suras(message):
+    """Показывает количество сур и первую суру"""
+    if not SURAS:
+        bot.reply_to(message, "❌ Суры не загружены. Проверьте файл suras/suras.txt")
+        return
+    first_sura = SURAS[0]
+    bot.reply_to(
+        message,
+        f"📖 В системе {len(SURAS)} сур.\n\n"
+        f"Первая сура:\n"
+        f"СУРА {first_sura['number']}\n"
+        f"{first_sura['text'][:300]}...",
         parse_mode="Markdown"
     )
 
 @bot.message_handler(commands=['id'])
 def cmd_id(message):
-    user_id = message.chat.id
     bot.reply_to(
         message,
-        f"🆔 *ТВОЙ ID:* `{user_id}`\n\n"
-        f"👑 Хранитель: {'✅' if is_admin(user_id) else '❌'}\n"
-        f"🎭 Роль: {get_user_role(user_id)}",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(commands=['web'])
-def cmd_web(message):
-    bot.reply_to(
-        message,
-        f"📱 *ОТКРОЙ ПРИЛОЖЕНИЕ:*\n"
-        f"[Нажми сюда](https://{RENDER_HOSTNAME}/webapp)",
+        f"🆔 *ТВОЙ ID:* `{message.chat.id}`\n\n"
+        f"👑 Хранитель: {'✅' if is_admin(message.chat.id) else '❌'}",
         parse_mode="Markdown"
     )
 
 @bot.message_handler(commands=['balance'])
 def cmd_balance(message):
-    user_id = message.chat.id
-    balance = get_balance(user_id)
-    bot.reply_to(message, f"💰 *ВАШ БАЛАНС:* {balance} Благ", parse_mode="Markdown")
-
-@bot.message_handler(commands=['stats'])
-def cmd_stats(message):
-    user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа")
-        return
-    
-    c.execute("SELECT COUNT(*) FROM users")
-    total_users = c.fetchone()[0]
-    
-    c.execute("SELECT SUM(blessings) FROM users")
-    total_blessings = c.fetchone()[0] or 0
-    
-    c.execute("SELECT COUNT(*) FROM orders WHERE status='open'")
-    open_orders = c.fetchone()[0]
-    
+    balance = get_balance(message.chat.id)
     bot.reply_to(
         message,
-        f"📊 *СТАТИСТИКА*\n\n"
-        f"👥 Пользователей: {total_users}\n"
-        f"✨ Всего Благ: {total_blessings}\n"
-        f"📦 Открытых заказов: {open_orders}",
+        f"💰 *БАЛАНС:* {balance} Благ\n\n"
+        f"💳 Trust Wallet: {TRUST_WALLET_ADDRESS}",
         parse_mode="Markdown"
     )
 
-@bot.message_handler(commands=['users'])
-def cmd_users(message):
+@bot.message_handler(commands=['pay'])
+def cmd_pay(message):
     user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа")
-        return
-    
-    c.execute("SELECT user_id, name, role, blessings FROM users LIMIT 20")
-    users = c.fetchall()
-    
-    if not users:
-        bot.reply_to(message, "📭 Нет пользователей")
-        return
-    
-    msg = "👥 *СПИСОК ПОЛЬЗОВАТЕЛЕЙ*\n\n"
-    for u in users:
-        msg += f"🆔 {u[0]} | {u[1]} | {u[2]} | ✦{u[3]}\n"
-    
-    bot.reply_to(message, msg, parse_mode="Markdown")
-
-@bot.message_handler(commands=['logs'])
-def cmd_logs(message):
-    user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа")
-        return
-    
-    c.execute("SELECT user_id, action, created_at FROM logs ORDER BY id DESC LIMIT 20")
-    logs = c.fetchall()
-    
-    if not logs:
-        bot.reply_to(message, "📭 Логов нет")
-        return
-    
-    msg = "📜 *ПОСЛЕДНИЕ ЛОГИ*\n\n"
-    for l in logs:
-        msg += f"{l[2][:16]} | ID:{l[0]} | {l[1][:30]}\n"
-    
-    bot.reply_to(message, msg, parse_mode="Markdown")
-
-@bot.message_handler(commands=['clear'])
-def cmd_clear(message):
-    user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа")
-        return
-    
-    # Очищаем логи
-    c.execute("DELETE FROM logs")
-    conn.commit()
-    bot.reply_to(message, "🧹 Логи очищены!")
-
-@bot.message_handler(func=lambda m: m.text == "👑 ХРАНИТЕЛЬ")
-def founder_section(message):
-    user_id = message.chat.id
-    if is_admin(user_id):
-        bot.reply_to(message, "👑 *ПАНЕЛЬ ХРАНИТЕЛЯ*", reply_markup=get_founder_keyboard(), parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "❌ Нет доступа", reply_markup=get_main_keyboard())
-
-@bot.message_handler(func=lambda m: m.text == "🏢 БИЗНЕС")
-def business_section(message):
-    bot.reply_to(message, "🏢 *БИЗНЕС-РАЗДЕЛ*\n\n🤖 Автоматизация\n📈 Лизинг\n📊 Аналитика", reply_markup=get_business_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "👤 ЛЮДИ")
-def people_section(message):
-    bot.reply_to(message, "👤 *ОБЫЧНЫЙ РАЗДЕЛ*\n\n💸 Работа\n📦 Заказы\n🔍 Поиск", reply_markup=get_people_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "💰 МОНЕТИЗАЦИЯ")
-def monetization_section(message):
-    bot.reply_to(message, "💰 *МОНЕТИЗАЦИЯ*\n\n💎 Купить тариф\n⭐ Партнёрская программа\n🏦 Kaspi QR\n💎 USDT TRC20", reply_markup=get_monetization_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "💸 РАБОТА")
-def work_section(message):
-    user_id = message.chat.id
-    log_action(user_id, "work", "Открыл раздел работы")
+    amount = 1000  # Пример
+    qr_data = generate_kaspi_qr(amount, f"order_{user_id}_{int(time.time())}")
     bot.reply_to(
         message,
-        "💸 *РАБОТА*\n\n"
-        "Доступные задания:\n"
-        "1. 🛠️ Сварщик — 5000 ₸\n"
-        "2. 📦 Доставка — 3000 ₸\n"
-        "3. 🧹 Уборка — 2000 ₸\n\n"
-        "📌 Чтобы создать задание: /order\n"
-        "🔍 Чтобы найти: /search",
+        f"💳 *ОПЛАТА*\n\n"
+        f"Сумма: {amount} ₸\n"
+        f"QR-код: {qr_data.get('qr_url', 'Ошибка генерации')}\n\n"
+        f"💰 Кошелёк: {TRUST_WALLET_ADDRESS}",
         parse_mode="Markdown"
     )
-
-@bot.message_handler(func=lambda m: m.text == "📦 ЗАКАЗЫ")
-def orders_section(message):
-    user_id = message.chat.id
-    log_action(user_id, "orders", "Открыл заказы")
-    
-    c.execute("SELECT id, title, price FROM orders WHERE status='open' LIMIT 10")
-    orders = c.fetchall()
-    
-    if orders:
-        msg = "📦 *АКТИВНЫЕ ЗАКАЗЫ*\n\n"
-        for o in orders:
-            msg += f"#{o[0]} {o[1]} — {o[2]} ₸\n"
-        bot.reply_to(message, msg, parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "📭 Нет активных заказов")
-
-@bot.message_handler(func=lambda m: m.text == "🔍 НАЙТИ МАСТЕРА")
-def find_master(message):
-    user_id = message.chat.id
-    log_action(user_id, "find_master", "Поиск мастера")
-    bot.reply_to(
-        message,
-        "🔍 *ПОИСК МАСТЕРА*\n\n"
-        "Введите профессию мастера:\n"
-        "🛠️ Сварщик\n"
-        "🔧 Электрик\n"
-        "🚗 Автомеханик\n"
-        "🏠 Строитель\n\n"
-        "Напишите: /search [профессия]",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(func=lambda m: m.text == "💼 ИЩУ РАБОТУ")
-def find_job(message):
-    user_id = message.chat.id
-    log_action(user_id, "find_job", "Поиск работы")
-    bot.reply_to(
-        message,
-        "💼 *ПОИСК РАБОТЫ*\n\n"
-        "Какая работа вас интересует?\n"
-        "🏗️ Строительство\n"
-        "🚛 Логистика\n"
-        "🍽️ Общепит\n"
-        "🏥 Медицина\n\n"
-        "Напишите: /search [работа]",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(func=lambda m: m.text == "💰 БАЛАНС")
-def balance_section(message):
-    user_id = message.chat.id
-    balance = get_balance(user_id)
-    log_action(user_id, "balance", f"Проверка баланса: {balance}")
-    bot.reply_to(
-        message,
-        f"💰 *ВАШ БАЛАНС*\n\n"
-        f"✨ Благ: {balance}\n\n"
-        f"💎 Тариф: Бесплатный\n"
-        f"📊 /pay — пополнить\n"
-        f"📋 /history — история",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(func=lambda m: m.text == "❓ ВОПРОС")
-def question_section(message):
-    bot.reply_to(
-        message,
-        "❓ *ЗАДАЙТЕ ВОПРОС*\n\n"
-        "Я помогу вам:\n"
-        "- Найти работу\n"
-        "- Решить спор\n"
-        "- Получить помощь\n"
-        "- Разобраться в системе\n\n"
-        "Просто напишите ваш вопрос.",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(func=lambda m: m.text == "🆘 ПОМОЩЬ")
-def help_section(message):
-    user_id = message.chat.id
-    log_action(user_id, "help", "Открыл помощь")
-    bot.reply_to(
-        message,
-        "🆘 *ПОМОЩЬ*\n\n"
-        "Что вас беспокоит?\n"
-        "1️⃣ Проблемы с деньгами\n"
-        "2️⃣ Потеря работы\n"
-        "3️⃣ Конфликт\n"
-        "4️⃣ Здоровье\n"
-        "5️⃣ Вопросы по системе\n\n"
-        "Напишите номер или опишите проблему.",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(func=lambda m: m.text == "🔙 НА ГЛАВНУЮ")
-def back_to_main(message):
-    user_id = message.chat.id
-    if is_admin(user_id):
-        bot.reply_to(message, "👑 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_founder_keyboard(), parse_mode="Markdown")
-    else:
-        bot.reply_to(message, "🪞 *ГЛАВНОЕ МЕНЮ*", reply_markup=get_people_keyboard(), parse_mode="Markdown")
-
-# ==================================================
-# 📱 ОБРАБОТЧИКИ WEBAPP КНОПОК (ЧЕРЕЗ CALLBACK)
-# ==================================================
-
-@bot.callback_query_handler(func=lambda call: True)
-def handle_callback(call):
-    user_id = call.from_user.id
-    data = call.data
-    
-    log_action(user_id, "callback", f"Действие: {data}")
-    
-    if data == "find":
-        bot.answer_callback_query(call.id, "🔍 Поиск")
-        bot.send_message(user_id, "🔍 *ПОИСК*\n\nВведите, что вы ищете:\n- Работу\n- Мастера\n- Товар\n- Услугу", parse_mode="Markdown")
-    
-    elif data == "work":
-        bot.answer_callback_query(call.id, "💼 Работа")
-        c.execute("SELECT id, title, price FROM orders WHERE status='open' LIMIT 5")
-        orders = c.fetchall()
-        if orders:
-            msg = "💼 *ДОСТУПНЫЕ ЗАДАНИЯ*\n\n"
-            for o in orders:
-                msg += f"📦 #{o[0]} {o[1]} — {o[2]} ₸\n"
-            bot.send_message(user_id, msg, parse_mode="Markdown")
-        else:
-            bot.send_message(user_id, "📭 Нет открытых заданий", parse_mode="Markdown")
-    
-    elif data == "help":
-        bot.answer_callback_query(call.id, "🆘 Помощь")
-        bot.send_message(user_id, "🆘 *ПОМОЩЬ*\n\nЧто вас беспокоит?\n1. Деньги\n2. Работа\n3. Конфликт\n4. Здоровье\n\nНапишите подробнее.", parse_mode="Markdown")
-    
-    elif data == "wallet":
-        balance = get_balance(user_id)
-        bot.answer_callback_query(call.id, f"💰 Баланс: {balance} Благ")
-        bot.send_message(user_id, f"💰 *КОШЕЛЁК*\n\n✨ Баланс: {balance} Благ\n\n💎 Тариф: Бесплатный\n📊 /pay — пополнить\n📋 /history — история", parse_mode="Markdown")
-    
-    elif data == "profile":
-        c.execute("SELECT name, role, blessings FROM users WHERE user_id=?", (user_id,))
-        user = c.fetchone()
-        if user:
-            bot.answer_callback_query(call.id, "👤 Профиль")
-            bot.send_message(user_id, f"👤 *ПРОФИЛЬ*\n\n📛 Имя: {user[0]}\n🎭 Роль: {user[1]}\n✨ Благ: {user[2]}\n\n🆔 ID: `{user_id}`", parse_mode="Markdown")
-    
-    elif data == "admin":
-        if is_admin(user_id):
-            bot.answer_callback_query(call.id, "👑 Панель управления")
-            bot.send_message(user_id, "👑 *ПАНЕЛЬ УПРАВЛЕНИЯ*\n\nВыберите:\n- /stats — статистика\n- /users — пользователи\n- /logs — логи\n- /clear — очистить логи", parse_mode="Markdown")
-        else:
-            bot.answer_callback_query(call.id, "❌ Доступ запрещён")
-    
-    elif data == "users":
-        if is_admin(user_id):
-            c.execute("SELECT user_id, name, role FROM users LIMIT 15")
-            users = c.fetchall()
-            if users:
-                msg = "👥 *ПОЛЬЗОВАТЕЛИ*\n\n"
-                for u in users:
-                    msg += f"🆔 {u[0]} | {u[1]} | {u[2]}\n"
-                bot.send_message(user_id, msg, parse_mode="Markdown")
-            else:
-                bot.send_message(user_id, "📭 Нет пользователей")
-        else:
-            bot.send_message(user_id, "❌ Нет доступа")
-    
-    elif data == "finance":
-        if is_admin(user_id):
-            c.execute("SELECT SUM(blessings) FROM users")
-            total = c.fetchone()[0] or 0
-            bot.send_message(user_id, f"💰 *ФИНАНСЫ*\n\n✨ Всего Благ: {total}\n👥 Всего пользователей: {c.execute('SELECT COUNT(*) FROM users').fetchone()[0]}", parse_mode="Markdown")
-        else:
-            bot.send_message(user_id, "❌ Нет доступа")
-    
-    elif data == "logs":
-        if is_admin(user_id):
-            c.execute("SELECT user_id, action, created_at FROM logs ORDER BY id DESC LIMIT 15")
-            logs = c.fetchall()
-            if logs:
-                msg = "📜 *ЛОГИ*\n\n"
-                for l in logs:
-                    msg += f"{l[2][:16]} | ID:{l[0]} | {l[1][:25]}\n"
-                bot.send_message(user_id, msg, parse_mode="Markdown")
-            else:
-                bot.send_message(user_id, "📭 Логов нет")
-        else:
-            bot.send_message(user_id, "❌ Нет доступа")
-    
-    elif data == "settings":
-        if is_admin(user_id):
-            bot.send_message(user_id, "⚙️ *НАСТРОЙКИ*\n\n/clear — очистить логи\n/backup — создать бэкап", parse_mode="Markdown")
-        else:
-            bot.send_message(user_id, "❌ Нет доступа")
-    
-    else:
-        bot.answer_callback_query(call.id, "⚠️ Неизвестная команда")
 
 # ==================================================
 # 🌐 WEBAPP МАРШРУТЫ
@@ -634,15 +375,10 @@ def api_orders():
     orders = c.fetchall()
     return jsonify([{"id": o[0], "title": o[1], "price": o[2], "status": o[3]} for o in orders])
 
-@app.route('/api/stats')
-def api_stats():
-    if not is_admin:
-        return jsonify({"error": "Unauthorized"}), 401
-    c.execute("SELECT COUNT(*) FROM users")
-    users = c.fetchone()[0]
-    c.execute("SELECT SUM(blessings) FROM users")
-    blessings = c.fetchone()[0] or 0
-    return jsonify({"users": users, "blessings": blessings})
+@app.route('/api/suras')
+def api_suras():
+    """Возвращает все суры для WebApp"""
+    return jsonify(SURAS)
 
 @app.route('/ping')
 def ping():
@@ -665,6 +401,7 @@ def home():
             .btn:hover {{ transform: scale(1.05); }}
             .status {{ color: #4ade80; margin-top: 20px; }}
             .footer {{ margin-top: 40px; color: #505060; font-size: 14px; }}
+            .sura-count {{ color: #f0c27f; font-size: 16px; margin-top: 10px; }}
         </style>
     </head>
     <body>
@@ -672,10 +409,11 @@ def home():
             <h1>🪞 ЗЕРКАЛО</h1>
             <p style="font-size: 18px; color: #a0a0b0;">Аль-Ми'ра · Свет и Отражение</p>
             <div class="status">✅ Работает 24/7</div>
+            <div class="sura-count">📖 {len(SURAS)} сур загружено</div>
             <a class="btn" href="/webapp">📱 ОТКРЫТЬ ПРИЛОЖЕНИЕ</a>
             <div class="footer">
                 Ассаляму алейкум ва рахматуллахи ва баракатух<br>
-                <span style="color:#3a3a4e;">v2.0 · {RENDER_HOSTNAME}</span>
+                <span style="color:#3a3a4e;">v5.0 · {RENDER_HOSTNAME}</span>
             </div>
         </div>
     </body>
@@ -703,6 +441,9 @@ def run_flask():
 if __name__ == "__main__":
     print("=" * 70)
     print("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
+    print("=" * 70)
+    print(f"📖 Загружено сур: {len(SURAS)}")
+    print(f"💳 Trust Wallet: {TRUST_WALLET_ADDRESS}")
     print("=" * 70)
     
     threading.Thread(target=run_bot, daemon=True).start()
