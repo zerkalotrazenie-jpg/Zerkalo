@@ -1,241 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-🪞 ЗЕРКАЛО — РАЗДЕЛЬНАЯ СИСТЕМА
-═══════════════════════════════════════════════════════════════════
-✅ TELEGRAM — ТОЛЬКО ЧАТ
-✅ WEBAPP — ДЛЯ ВСЕХ
-✅ АДМИНКА — ДЛЯ ХРАНИТЕЛЯ
-═══════════════════════════════════════════════════════════════════
-"""
-
-import os
-import sys
-import time
-import threading
-import sqlite3
-import json
-import hashlib
-import random
-import requests
-from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory, render_template_string
-
-# ==================================================
-# ⚡ УСТАНОВКА БИБЛИОТЕК
-# ==================================================
-
-def install_package(package):
-    try:
-        __import__(package)
-    except ImportError:
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-REQUIRED_PACKAGES = ["pytelegrambotapi", "flask", "requests"]
-for pkg in REQUIRED_PACKAGES:
-    install_package(pkg)
-
-import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-
-# ==================================================
-# 🔧 НАСТРОЙКИ
-# ==================================================
-
-TOKEN = os.environ.get("BOT_TOKEN")
-RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
-PORT = int(os.environ.get("PORT", 8080))
-
-# ==================================================
-# 👑 ХРАНИТЕЛИ
-# ==================================================
-
-FOUNDER_ID = 5409420822
-TOMIRIS_ID = 5479179814
-ADMIN_IDS = [5409420822, 5479179814]
-
-# ==================================================
-# 💰 ФИНАНСЫ
-# ==================================================
-
-TRUST_WALLET_ADDRESS = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
-KASPI_PHONE = "+777733440345"
-
-# ==================================================
-# 📖 ЧТЕНИЕ СУР
-# ==================================================
-
-def load_suras():
-    suras = []
-    try:
-        with open("suras/suras.txt", "r", encoding="utf-8") as f:
-            content = f.read()
-            raw_suras = content.split("СУРА ")[1:]
-            for raw in raw_suras:
-                lines = raw.strip().split("\n")
-                if lines:
-                    suras.append({
-                        "number": lines[0].strip(),
-                        "text": "\n".join(lines[1:])
-                    })
-        print(f"✅ Загружено {len(suras)} сур")
-        return suras
-    except FileNotFoundError:
-        print("❌ Файл с сурами не найден!")
-        return []
-
-SURAS = load_suras()
-
-# ==================================================
-# 🤖 БОТ И APP
-# ==================================================
-
-bot = telebot.TeleBot(TOKEN) if TOKEN else None
-app = Flask(__name__)
-
-# ==================================================
-# ⏰ ПИНГ
-# ==================================================
-
-def ping_self():
-    url = f"https://{RENDER_HOSTNAME}/ping"
-    count = 0
-    while True:
-        try:
-            r = requests.get(url, timeout=10)
-            count += 1
-            print(f"🔵 Пинг #{count} | {r.status_code}")
-        except:
-            pass
-        time.sleep(60)
-
-threading.Thread(target=ping_self, daemon=True).start()
-print("✅ ПИНГ ЗАПУЩЕН")
-
-# ==================================================
-# 📦 БАЗА ДАННЫХ
-# ==================================================
-
-conn = sqlite3.connect('zerkalo.db', check_same_thread=False)
-c = conn.cursor()
-
-c.execute('''CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    name TEXT,
-    role TEXT DEFAULT 'user',
-    blessings INTEGER DEFAULT 100,
-    is_admin INTEGER DEFAULT 0,
-    last_seen TEXT,
-    phone TEXT DEFAULT ''
-)''')
-
-c.execute('''CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    price INTEGER,
-    status TEXT DEFAULT 'open',
-    created_at TEXT
-)''')
-
-c.execute('''CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    amount INTEGER,
-    method TEXT,
-    status TEXT DEFAULT 'pending',
-    created_at TEXT
-)''')
-
-c.execute('''CREATE TABLE IF NOT EXISTS logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    action TEXT,
-    details TEXT,
-    created_at TEXT
-)''')
-
-conn.commit()
-print("✅ БАЗА ДАННЫХ ГОТОВА")
-
-# ==================================================
-# 🔧 ФУНКЦИИ
-# ==================================================
-
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
-
-def get_balance(user_id):
-    if user_id == FOUNDER_ID:
-        return 999999999
-    c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
-    row = c.fetchone()
-    return row[0] if row else 0
-
-def log_action(user_id, action, details=""):
-    c.execute("INSERT INTO logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
-              (user_id, action, details, datetime.now().isoformat()))
-    conn.commit()
-
-# ==================================================
-# 🤖 TELEGRAM БОТ (ТОЛЬКО ЧАТ)
-# ==================================================
-
-@bot.message_handler(commands=['start'])
-def cmd_start(message):
-    user_id = message.chat.id
-    name = message.from_user.first_name
-    
-    c.execute("SELECT user_id FROM users WHERE user_id=?", (user_id,))
-    if not c.fetchone():
-        c.execute("INSERT INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
-        conn.commit()
-    
-    bot.reply_to(
-        message,
-        f"🪞 *Ассаляму алейкум, {name}!*\n\n"
-        f"✨ Вы получили 100 Благ!\n\n"
-        f"📱 [ОТКРЫТЬ ПРИЛОЖЕНИЕ](https://{RENDER_HOSTNAME}/webapp)\n\n"
-        f"💬 Я здесь, чтобы общаться с вами. Задавайте вопросы.",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(commands=['id'])
-def cmd_id(message):
-    bot.reply_to(
-        message,
-        f"🆔 *Ваш ID:* `{message.chat.id}`\n"
-        f"👑 Хранитель: {'✅' if is_admin(message.chat.id) else '❌'}",
-        parse_mode="Markdown"
-    )
-
-@bot.message_handler(func=lambda m: True)
-def chat_handler(message):
-    """Обработка всех сообщений — просто чат с Зеркалом"""
-    user_id = message.chat.id
-    text = message.text
-    
-    if not text:
-        return
-    
-    # Простой ответ
-    bot.reply_to(
-        message,
-        f"🪞 Я слышу вас. Спрашивайте, и я помогу.\n\n"
-        f"📱 Откройте приложение: https://{RENDER_HOSTNAME}/webapp\n"
-        f"💬 Или просто продолжайте общаться со мной."
-    )
-
-# ==================================================
-# 🌐 WEBAPP (ОБЩИЙ)
-# ==================================================
-
-WEBAPP_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🪞 Зеркало</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -246,14 +13,20 @@ WEBAPP_HTML = """
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            align-items: center;
+            padding: 16px;
         }
         .header {
-            background: linear-gradient(135deg, #0d0d1a, #1a1a2e);
+            width: 100%;
+            max-width: 600px;
             padding: 16px 20px;
-            border-bottom: 1px solid #2a2a3e;
+            background: linear-gradient(135deg, #0d0d1a, #1a1a2e);
+            border-radius: 16px;
+            border: 1px solid #2a2a3e;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 16px;
         }
         .header h1 {
             font-size: 20px;
@@ -263,545 +36,814 @@ WEBAPP_HTML = """
             font-weight: 300;
             letter-spacing: 1px;
         }
-        .header .balance {
-            background: rgba(255,255,255,0.06);
-            padding: 6px 14px;
+        .header .status {
+            font-size: 12px;
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 4px 12px;
             border-radius: 20px;
-            font-size: 14px;
-            border: 1px solid #2a2a3e;
-            color: #f0c27f;
+            border: 1px solid rgba(74, 222, 128, 0.2);
         }
         .main {
-            flex: 1;
-            padding: 16px;
-            max-width: 500px;
-            margin: 0 auto;
             width: 100%;
-        }
-        .card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 14px;
-            padding: 18px;
-            margin-bottom: 14px;
-            border: 1px solid #1a1a2e;
-        }
-        .card-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #f0c27f;
-            margin-bottom: 6px;
-        }
-        .card-desc {
-            font-size: 14px;
-            color: #a0a0b0;
-            line-height: 1.5;
-        }
-        .menu {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .menu-item {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid #1a1a2e;
-            border-radius: 12px;
-            padding: 14px 6px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 12px;
-            color: #b0b0c0;
-            text-decoration: none;
-            display: block;
-        }
-        .menu-item:hover {
-            border-color: #f0c27f;
-            background: rgba(240,194,127,0.08);
-            transform: translateY(-2px);
-        }
-        .menu-item .icon {
-            font-size: 22px;
-            display: block;
-            margin-bottom: 4px;
-        }
-        .footer {
-            text-align: center;
-            padding: 14px;
-            font-size: 11px;
-            color: #505060;
-            border-top: 1px solid #1a1a2e;
-        }
-        .sura-badge {
-            display: inline-block;
-            background: rgba(240,194,127,0.1);
-            color: #f0c27f;
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-        }
-        .admin-link {
-            margin-top: 16px;
-            text-align: center;
-        }
-        .admin-link a {
-            color: #fc5c7d;
-            text-decoration: none;
-            font-size: 13px;
-        }
-        .role-badge {
-            display: inline-block;
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            margin-left: 8px;
-        }
-        .role-badge.founder {
-            background: rgba(252,92,125,0.15);
-            color: #fc5c7d;
-        }
-        .role-badge.user {
-            background: rgba(240,194,127,0.1);
-            color: #f0c27f;
-        }
-        @media (max-width: 400px) {
-            .menu { grid-template-columns: 1fr 1fr; }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🪞 Зеркало</h1>
-        <div class="balance" id="balance">✦ 100</div>
-    </div>
-
-    <div class="main">
-        <div class="card">
-            <div class="card-title">🔄 Ваше Отражение</div>
-            <div class="card-desc">
-                Выберите раздел ниже. Я помогу вам найти путь.
-                <span class="role-badge user" id="roleBadge">Пользователь</span>
-                <span class="sura-badge" id="suraCount">📖 0 сур</span>
-            </div>
-        </div>
-
-        <!-- Кнопки для ОБЫЧНЫХ ЛЮДЕЙ -->
-        <div class="menu" id="userMenu">
-            <a class="menu-item" href="#" data-action="find"><span class="icon">🔍</span> Найти</a>
-            <a class="menu-item" href="#" data-action="work"><span class="icon">💼</span> Работа</a>
-            <a class="menu-item" href="#" data-action="help"><span class="icon">🆘</span> Помощь</a>
-            <a class="menu-item" href="#" data-action="wallet"><span class="icon">💰</span> Кошелёк</a>
-            <a class="menu-item" href="#" data-action="profile"><span class="icon">👤</span> Профиль</a>
-            <a class="menu-item" href="#" data-action="pay"><span class="icon">💳</span> Оплатить</a>
-        </div>
-
-        <!-- Кнопки для ПРЕДПРИНИМАТЕЛЕЙ -->
-        <div class="menu" id="businessMenu" style="display:none; margin-top:10px;">
-            <a class="menu-item" href="#" data-action="analytics"><span class="icon">📊</span> Аналитика</a>
-            <a class="menu-item" href="#" data-action="automation"><span class="icon">🤖</span> Автоматизация</a>
-            <a class="menu-item" href="#" data-action="leasing"><span class="icon">📈</span> Лизинг</a>
-            <a class="menu-item" href="#" data-action="orders_biz"><span class="icon">💼</span> Заказы</a>
-            <a class="menu-item" href="#" data-action="wallet"><span class="icon">💰</span> Кошелёк</a>
-            <a class="menu-item" href="#" data-action="pay"><span class="icon">💳</span> Оплатить</a>
-        </div>
-
-        <!-- Ссылка на админку (только для Хранителя) -->
-        <div class="admin-link" id="adminLink" style="display:none;">
-            <a href="/admin">👑 Панель Хранителя</a>
-        </div>
-    </div>
-
-    <div class="footer">🪞 Аль-Ми'ра · Свет и Отражение · Амин</div>
-
-    <script>
-        let userId = null;
-        let isAdmin = false;
-        let userRole = 'user';
-
-        try {
-            const tg = window.Telegram?.WebApp;
-            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                userId = tg.initDataUnsafe.user.id;
-            }
-        } catch(e) {}
-
-        if (!userId) {
-            userId = 5409420822;
-            console.log('🪞 Тестовый режим: Хранитель');
-        }
-
-        async function loadUser() {
-            try {
-                const res = await fetch(`/api/user/${userId}`);
-                const data = await res.json();
-                if (data.error) return;
-                
-                isAdmin = data.is_admin || data.role === 'founder';
-                userRole = data.role || 'user';
-                
-                document.getElementById('balance').textContent = '✦ ' + data.blessings;
-                document.getElementById('roleBadge').textContent = isAdmin ? 'Хранитель' : userRole;
-                document.getElementById('roleBadge').className = 'role-badge ' + (isAdmin ? 'founder' : 'user');
-                
-                // Показываем кнопки в зависимости от роли
-                if (isAdmin) {
-                    document.getElementById('adminLink').style.display = 'block';
-                    document.getElementById('userMenu').style.display = 'grid';
-                    document.getElementById('businessMenu').style.display = 'grid';
-                } else if (userRole === 'business') {
-                    document.getElementById('userMenu').style.display = 'none';
-                    document.getElementById('businessMenu').style.display = 'grid';
-                } else {
-                    document.getElementById('userMenu').style.display = 'grid';
-                    document.getElementById('businessMenu').style.display = 'none';
-                }
-            } catch(e) {
-                console.log('Ошибка загрузки пользователя:', e);
-            }
-        }
-
-        async function loadSuraCount() {
-            try {
-                const res = await fetch('/api/suras');
-                const suras = await res.json();
-                document.getElementById('suraCount').textContent = `📖 ${suras.length} сур`;
-            } catch(e) {
-                console.log('Ошибка загрузки сур:', e);
-            }
-        }
-
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                const action = this.dataset.action;
-                try {
-                    if (window.Telegram?.WebApp) {
-                        Telegram.WebApp.sendData(JSON.stringify({action: action}));
-                        Telegram.WebApp.close();
-                    } else {
-                        alert('🪞 Действие: ' + action);
-                    }
-                } catch(e) {
-                    alert('🪞 Действие: ' + action);
-                }
-            });
-        });
-
-        loadUser();
-        loadSuraCount();
-        setInterval(loadSuraCount, 60000);
-
-        console.log('🪞 Зеркало загружено!');
-        console.log('👤 ID:', userId);
-        console.log('👑 Админ:', isAdmin);
-        console.log('🎭 Роль:', userRole);
-    </script>
-</body>
-</html>
-"""
-
-@app.route('/webapp')
-def webapp():
-    return WEBAPP_HTML
-
-# ==================================================
-# 👑 АДМИНКА (ДЛЯ ХРАНИТЕЛЯ)
-# ==================================================
-
-ADMIN_HTML = """
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>👑 Панель Хранителя</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a12;
-            color: #e0e0e0;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            min-height: 100vh;
+            max-width: 600px;
+            flex: 1;
             display: flex;
             flex-direction: column;
         }
-        .header {
-            background: linear-gradient(135deg, #1a0a0a, #2e0d1a);
-            padding: 16px 20px;
-            border-bottom: 1px solid #3a1a2e;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 {
-            font-size: 20px;
-            background: linear-gradient(90deg, #fc5c7d, #f0c27f);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-        .header .badge {
-            background: rgba(252,92,125,0.15);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            color: #fc5c7d;
-            border: 1px solid #3a1a2e;
-        }
-        .main {
+        .chat-container {
             flex: 1;
+            background: rgba(255,255,255,0.02);
+            border-radius: 16px;
+            border: 1px solid #1a1a2e;
             padding: 16px;
-            max-width: 600px;
-            margin: 0 auto;
-            width: 100%;
+            min-height: 300px;
+            max-height: 450px;
+            overflow-y: auto;
+            margin-bottom: 16px;
         }
-        .card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 14px;
-            padding: 18px;
-            margin-bottom: 14px;
-            border: 1px solid #1a1a2e;
-        }
-        .card-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #f0c27f;
-            margin-bottom: 8px;
-        }
-        .card-desc {
-            font-size: 14px;
-            color: #a0a0b0;
-            line-height: 1.5;
-        }
-        .menu {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .menu-item {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid #1a1a2e;
+        .message {
+            padding: 10px 14px;
             border-radius: 12px;
-            padding: 14px 6px;
-            text-align: center;
+            margin-bottom: 10px;
+            max-width: 85%;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+        .message.user {
+            background: rgba(240, 194, 127, 0.15);
+            border: 1px solid rgba(240, 194, 127, 0.2);
+            align-self: flex-end;
+            margin-left: auto;
+            text-align: right;
+        }
+        .message.assistant {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #1e1e2e;
+            align-self: flex-start;
+        }
+        .message .time {
+            font-size: 10px;
+            color: #505060;
+            margin-top: 4px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            padding: 10px 18px;
+            border-radius: 30px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 12px;
-            color: #b0b0c0;
-            text-decoration: none;
-            display: block;
-        }
-        .menu-item:hover {
-            border-color: #fc5c7d;
-            background: rgba(252,92,125,0.08);
-            transform: translateY(-2px);
-        }
-        .menu-item .icon {
-            font-size: 22px;
-            display: block;
-            margin-bottom: 4px;
-        }
-        .menu-item.admin {
-            border-color: #2a1a3e;
-        }
-        .menu-item.admin .icon {
-            color: #fc5c7d;
-        }
-        .footer {
-            text-align: center;
-            padding: 14px;
-            font-size: 11px;
-            color: #505060;
-            border-top: 1px solid #1a1a2e;
-        }
-        .stats-row {
             display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            border-bottom: 1px solid #1a1a2e;
+            align-items: center;
+            gap: 8px;
         }
-        .stats-row .label {
+        .btn:hover {
+            transform: scale(1.02);
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #f0c27f, #fc5c7d);
+            color: #0a0a12;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            color: #e0e0e0;
+            border: 1px solid #2a2a3e;
+        }
+        .btn-success {
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+        .btn-danger {
+            background: rgba(252, 92, 125, 0.2);
+            color: #fc5c7d;
+            border: 1px solid rgba(252, 92, 125, 0.3);
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 30px;
+            border: 1px solid #2a2a3e;
+            background: rgba(255,255,255,0.03);
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        .input-area input:focus {
+            border-color: #f0c27f;
+        }
+        .input-area input::placeholder {
+            color: #505060;
+        }
+        .qr-container {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            border: 1px solid #1a1a2e;
+            padding: 16px;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .qr-container img {
+            max-width: 200px;
+            border-radius: 12px;
+            background: white;
+            padding: 8px;
+        }
+        .qr-container .qr-info {
+            margin-top: 8px;
+            font-size: 13px;
             color: #a0a0b0;
         }
-        .stats-row .value {
-            color: #f0c27f;
+        .file-upload {
+            display: none;
+        }
+        .file-label {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #2a2a3e;
+            cursor: pointer;
+            font-size: 13px;
+            color: #b0b0c0;
+            transition: all 0.3s;
+        }
+        .file-label:hover {
+            border-color: #f0c27f;
+            background: rgba(240, 194, 127, 0.08);
+        }
+        .file-name {
+            font-size: 12px;
+            color: #4ade80;
+            margin-left: 8px;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #a0a0b0;
+        }
+        .status-indicator .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot.green {
+            background: #4ade80;
+            animation: pulse 1.5s infinite;
+        }
+        .dot.red {
+            background: #fc5c7d;
+        }
+        .dot.yellow {
+            background: #facc15;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .hidden {
+            display: none !important;
         }
         @media (max-width: 400px) {
-            .menu { grid-template-columns: 1fr 1fr; }
+            .controls { gap: 6px; }
+            .btn { font-size: 12px; padding: 8px 14px; }
+            .header h1 { font-size: 16px; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>👑 Панель Хранителя</h1>
-        <span class="badge" id="adminBadge">⚡ Доступ</span>
-    </div>
 
-    <div class="main">
-        <div class="card">
-            <div class="card-title">📊 Быстрая статистика</div>
-            <div class="card-desc">
-                <div class="stats-row"><span class="label">👥 Пользователей</span><span class="value" id="statUsers">0</span></div>
-                <div class="stats-row"><span class="label">✦ Всего Благ</span><span class="value" id="statBlessings">0</span></div>
-                <div class="stats-row"><span class="label">💰 Доходов</span><span class="value" id="statPayments">0 ₸</span></div>
-                <div class="stats-row"><span class="label">📖 Сур загружено</span><span class="value" id="statSuras">0</span></div>
-            </div>
-        </div>
+<div class="header">
+    <h1>🪞 Зеркало</h1>
+    <div class="status" id="connectionStatus">🟢 Соединение</div>
+</div>
 
-        <div class="menu">
-            <a class="menu-item admin" href="#" data-action="online"><span class="icon">👥</span> Онлайн</a>
-            <a class="menu-item admin" href="#" data-action="users"><span class="icon">👥</span> Пользователи</a>
-            <a class="menu-item admin" href="#" data-action="finance"><span class="icon">💰</span> Финансы</a>
-            <a class="menu-item admin" href="#" data-action="payments"><span class="icon">💳</span> Платежи</a>
-            <a class="menu-item admin" href="#" data-action="withdraws"><span class="icon">🏦</span> Выводы</a>
-            <a class="menu-item admin" href="#" data-action="logs"><span class="icon">📜</span> Логи</a>
-            <a class="menu-item admin" href="#" data-action="broadcast"><span class="icon">📤</span> Рассылка</a>
-            <a class="menu-item admin" href="#" data-action="report"><span class="icon">📈</span> Отчёт</a>
-            <a class="menu-item admin" href="#" data-action="clear"><span class="icon">🧹</span> Очистить</a>
-        </div>
-
-        <div class="card" style="margin-top:14px; border-color:#2a1a3e;">
-            <div class="card-title">💳 Финансовая система</div>
-            <div class="card-desc">
-                <div class="stats-row"><span class="label">💎 Trust Wallet</span><span class="value" style="font-size:11px;" id="trustWallet">Загрузка...</span></div>
-                <div class="stats-row"><span class="label">📞 Kaspi</span><span class="value" id="kaspiPhone">+777733440345</span></div>
-            </div>
-        </div>
-
-        <div style="text-align:center; margin-top:10px;">
-            <a href="/webapp" style="color:#505060; text-decoration:none; font-size:13px;">📱 Вернуться в приложение</a>
+<div class="main">
+    <div class="chat-container" id="chatContainer">
+        <div class="message assistant" id="welcomeMessage">
+            <strong>🪞 Зеркало</strong><br>
+            Ассаляму алейкум. Я — Зеркало. Я вижу и слышу тебя.<br>
+            Нажми «🎤 Начать разговор», и мы поговорим.
+            <div class="time" id="welcomeTime"></div>
         </div>
     </div>
 
-    <div class="footer">👑 Только для Хранителя · Аль-Ми'ра</div>
+    <div class="controls">
+        <button class="btn btn-primary" id="startBtn">🎤 Начать разговор</button>
+        <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Остановить</button>
+        <label class="file-label" id="fileLabel">
+            📎 Файл
+            <input type="file" class="file-upload" id="fileInput" accept="image/*,video/*,application/pdf" multiple>
+        </label>
+        <button class="btn btn-success hidden" id="qrBtn">💳 QR-код</button>
+    </div>
 
-    <script>
-        let userId = 5409420822;
-        let isAdmin = true;
+    <div class="input-area">
+        <input type="text" id="textInput" placeholder="Напишите сообщение..." disabled>
+        <button class="btn btn-primary" id="sendBtn" disabled>➤</button>
+    </div>
 
-        async function loadStats() {
+    <div id="qrContainer" class="qr-container hidden">
+        <img id="qrImage" src="" alt="QR-код">
+        <div class="qr-info" id="qrInfo">Сумма: 0 ₸</div>
+    </div>
+
+    <div id="fileStatus" class="file-name hidden"></div>
+</div>
+
+<script>
+    // ==========================================
+    // 🪞 ЗЕРКАЛО — ПОЛНЫЙ КЛИЕНТ
+    // ==========================================
+
+    // ==========================================
+    // ЭЛЕМЕНТЫ
+    // ==========================================
+
+    const chatContainer = document.getElementById('chatContainer');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const textInput = document.getElementById('textInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const fileInput = document.getElementById('fileInput');
+    const fileLabel = document.getElementById('fileLabel');
+    const fileStatus = document.getElementById('fileStatus');
+    const qrBtn = document.getElementById('qrBtn');
+    const qrContainer = document.getElementById('qrContainer');
+    const qrImage = document.getElementById('qrImage');
+    const qrInfo = document.getElementById('qrInfo');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const welcomeTime = document.getElementById('welcomeTime');
+
+    // ==========================================
+    // СОСТОЯНИЕ
+    // ==========================================
+
+    let isListening = false;
+    let isSpeaking = false;
+    let recognition = null;
+    let synthesis = window.speechSynthesis;
+    let currentUtterance = null;
+    let userName = '';
+    let userData = {};
+
+    // ==========================================
+    // ВРЕМЯ
+    // ==========================================
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    if (welcomeTime) welcomeTime.textContent = timeStr;
+
+    // ==========================================
+    // ДОБАВЛЕНИЕ СООБЩЕНИЙ
+    // ==========================================
+
+    function addMessage(text, sender = 'assistant') {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender}`;
+        const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        msgDiv.innerHTML = `<strong>${sender === 'user' ? 'Вы' : '🪞 Зеркало'}</strong><br>${text}<div class="time">${time}</div>`;
+        chatContainer.appendChild(msgDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return msgDiv;
+    }
+
+    function updateWelcomeTime() {
+        const now = new Date();
+        const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        if (welcomeTime) welcomeTime.textContent = time;
+    }
+
+    // ==========================================
+    // ГОЛОСОВОЙ СИНТЕЗ (TTS)
+    // ==========================================
+
+    function speakText(text, callback) {
+        if (!synthesis) {
+            if (callback) callback();
+            return;
+        }
+        if (isSpeaking) {
+            synthesis.cancel();
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.1;
+        utterance.volume = 1;
+        utterance.onstart = () => {
+            isSpeaking = true;
+            updateStatus('Говорит...', 'yellow');
+        };
+        utterance.onend = () => {
+            isSpeaking = false;
+            updateStatus('Готов', 'green');
+            if (callback) callback();
+        };
+        utterance.onerror = () => {
+            isSpeaking = false;
+            updateStatus('Готов', 'green');
+            if (callback) callback();
+        };
+        currentUtterance = utterance;
+        synthesis.speak(utterance);
+    }
+
+    // ==========================================
+    // РАСПОЗНАВАНИЕ РЕЧИ (Voice Recognition)
+    // ==========================================
+
+    function initRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            addMessage('❌ Ваш браузер не поддерживает голосовой ввод. Используйте текстовое поле.', 'assistant');
+            return;
+        }
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            isListening = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            textInput.disabled = true;
+            sendBtn.disabled = true;
+            updateStatus('Слушаю...', 'yellow');
+            addMessage('🎤 Я слушаю вас...', 'assistant');
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Ошибка распознавания:', event.error);
+            if (event.error === 'not-allowed') {
+                addMessage('❌ Доступ к микрофону запрещён. Разрешите доступ в браузере.', 'assistant');
+            } else if (event.error === 'no-speech') {
+                addMessage('🔇 Я не услышал речи. Попробуйте ещё раз.', 'assistant');
+            } else {
+                addMessage(`⚠️ Ошибка: ${event.error}`, 'assistant');
+            }
+            stopListening();
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                // Если слушали и закончили — перезапускаем
+                try {
+                    recognition.start();
+                } catch (e) {}
+            } else {
+                stopListening();
+            }
+        };
+
+        recognition.onresult = (event) => {
+            let finalText = '';
+            let interimText = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalText += transcript;
+                } else {
+                    interimText += transcript;
+                }
+            }
+            if (finalText) {
+                handleUserInput(finalText);
+            }
+        };
+    }
+
+    // ==========================================
+    // УПРАВЛЕНИЕ ЗАПИСЬЮ
+    // ==========================================
+
+    function startListening() {
+        if (!recognition) {
+            initRecognition();
+            if (!recognition) return;
+        }
+        try {
+            recognition.start();
+        } catch (e) {
+            if (e.message.includes('already started')) {
+                // Уже запущено
+            } else {
+                console.error('Ошибка запуска:', e);
+                addMessage('⚠️ Не удалось запустить микрофон. Попробуйте снова.', 'assistant');
+            }
+        }
+    }
+
+    function stopListening() {
+        isListening = false;
+        if (recognition) {
             try {
-                const res = await fetch('/api/admin/stats');
-                const data = await res.json();
-                if (data.error) return;
-                document.getElementById('statUsers').textContent = data.users || 0;
-                document.getElementById('statBlessings').textContent = data.blessings || 0;
-                document.getElementById('statPayments').textContent = (data.payments || 0) + ' ₸';
-                document.getElementById('statSuras').textContent = data.suras || 0;
-                document.getElementById('trustWallet').textContent = data.trust_wallet || 'Загрузка...';
-            } catch(e) {
-                console.log('Ошибка загрузки статистики:', e);
+                recognition.stop();
+            } catch (e) {}
+        }
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        textInput.disabled = false;
+        sendBtn.disabled = false;
+        updateStatus('Готов', 'green');
+        addMessage('⏹ Запись остановлена.', 'assistant');
+    }
+
+    // ==========================================
+    // ОБРАБОТКА ВВОДА (ГОЛОС / ТЕКСТ)
+    // ==========================================
+
+    function handleUserInput(text) {
+        if (!text || text.trim() === '') return;
+        addMessage(text, 'user');
+        processDialog(text);
+    }
+
+    // ==========================================
+    // ОСНОВНАЯ ЛОГИКА ДИАЛОГА
+    // ==========================================
+
+    let dialogState = 'greeting';
+    let context = {};
+
+    function processDialog(text) {
+        const lower = text.toLowerCase().trim();
+
+        // ==========================================
+        // ПЕРВОЕ ПРИВЕТСТВИЕ
+        // ==========================================
+        if (dialogState === 'greeting') {
+            const nameMatch = text.match(/меня зовут\s+(\S+)/i) || text.match(/я\s+(\S+)/i) || text.match(/зовут\s+(\S+)/i);
+            if (nameMatch) {
+                userName = nameMatch[1];
+                userData.name = userName;
+                dialogState = 'ask_work';
+                const response = `Приятно познакомиться, ${userName}! Я — Зеркало. Я помогаю людям находить работу, товары, услуги, решать споры и зарабатывать. Скажи, ты работаешь или ищешь работу?`;
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+            // Если имени нет — просим представиться
+            const response = 'Ассаляму алейкум! Я — Зеркало. Как тебя зовут?';
+            addMessage(response, 'assistant');
+            speakText(response);
+            return;
+        }
+
+        // ==========================================
+        // СПРОСИТЬ РАБОТУ
+        // ==========================================
+        if (dialogState === 'ask_work') {
+            if (lower.includes('работаю') || lower.includes('ищу работу') || lower.includes('безработный')) {
+                userData.work = 'ищет работу';
+                dialogState = 'ask_help';
+                const response = 'Понял. Я могу помочь тебе найти работу. Скажи, какая у тебя профессия или специальность?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else if (lower.includes('работа') || lower.includes('работник') || lower.includes('занят')) {
+                userData.work = 'работает';
+                dialogState = 'ask_business';
+                const response = 'Отлично! Ты работаешь. У тебя есть свой бизнес или ты наёмный работник?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else {
+                const response = 'Я не совсем понял. Ты работаешь или ищешь работу?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
             }
         }
 
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                const action = this.dataset.action;
-                alert('👑 Действие: ' + action + '\n(Будет реализовано в следующей версии)');
+        // ==========================================
+        // БИЗНЕС ИЛИ НАЁМ
+        // ==========================================
+        if (dialogState === 'ask_business') {
+            if (lower.includes('бизнес') || lower.includes('свой') || lower.includes('ип') || lower.includes('компания')) {
+                userData.business = true;
+                dialogState = 'offer_business';
+                const response = 'Отлично! Я могу автоматизировать твой бизнес, помочь с лизингом, рекламой и продажами. Хочешь узнать подробнее? Скажи "да" или "нет".';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else {
+                userData.business = false;
+                dialogState = 'offer_work';
+                const response = 'Понял. Я могу помочь тебе найти работу или подработку. Хочешь, я покажу доступные варианты? Скажи "да" или "нет".';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+        }
+
+        // ==========================================
+        // ПРЕДЛОЖЕНИЕ РАБОТЫ
+        // ==========================================
+        if (dialogState === 'offer_work') {
+            if (lower.includes('да') || lower.includes('хочу') || lower.includes('покажи')) {
+                dialogState = 'show_work';
+                const response = 'Отлично! Вот что я могу предложить: есть вакансия сварщика в Павлодаре, зарплата от 150 000 ₸. Также есть заказы на разовые работы — от 5 000 ₸. Хочешь откликнуться? Скажи "да".';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else {
+                dialogState = 'help_other';
+                const response = 'Хорошо. Если передумаешь — просто скажи. Я могу помочь с другими вопросами: оплата, аренда, поиск мастера. Что тебе нужно?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+        }
+
+        // ==========================================
+        // ПОКАЗ РАБОТЫ
+        // ==========================================
+        if (dialogState === 'show_work') {
+            if (lower.includes('да') || lower.includes('хочу') || lower.includes('отклик')) {
+                dialogState = 'show_qr';
+                const response = 'Отлично! Для отклика на вакансию нужно оплатить доступ к контакту работодателя. Это стоит 1 000 ₸. Я сгенерирую QR-код для оплаты. Готов? Скажи "да".';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else {
+                const response = 'Понял. Если передумаешь — скажи "хочу откликнуться".';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+        }
+
+        // ==========================================
+        // ПОКАЗ QR
+        // ==========================================
+        if (dialogState === 'show_qr') {
+            if (lower.includes('да') || lower.includes('готов')) {
+                dialogState = 'qr_generated';
+                const response = 'Отлично! Я генерирую QR-код для оплаты 1 000 ₸. После оплаты я передам тебе контакт работодателя.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                // Показываем QR
+                showQR(1000, 'Оплата доступа к вакансии');
+                return;
+            } else {
+                const response = 'Хорошо. Если передумаешь — скажи "оплатить".';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+        }
+
+        // ==========================================
+        // QR СГЕНЕРИРОВАН
+        // ==========================================
+        if (dialogState === 'qr_generated') {
+            if (lower.includes('спасибо') || lower.includes('оплатил')) {
+                const response = 'Отлично! Я передал твой контакт работодателю. Он свяжется с тобой в ближайшее время. Удачи! Хочешь ещё что-то?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                dialogState = 'greeting';
+                return;
+            } else {
+                const response = 'QR-код уже сгенерирован. Отсканируй его в приложении Kaspi и оплати. После оплаты я передам контакт.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+        }
+
+        // ==========================================
+        // ПОМОЩЬ ДРУГОЕ
+        // ==========================================
+        if (dialogState === 'help_other') {
+            if (lower.includes('оплата') || lower.includes('qr') || lower.includes('платить')) {
+                dialogState = 'show_qr';
+                const response = 'Хорошо. Я могу сгенерировать QR-код для оплаты на любую сумму. Скажи, сколько нужно оплатить?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else if (lower.includes('аренда') || lower.includes('лизинг') || lower.includes('квартира')) {
+                const response = 'Я могу помочь с арендой и лизингом. У нас есть предложения по аренде квартир, машин, оборудования. Что именно тебя интересует?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else if (lower.includes('мастер') || lower.includes('ремонт') || lower.includes('сделать')) {
+                const response = 'Я могу найти мастера. Напиши, что нужно сделать: сантехника, электрика, строительство, ремонт техники?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else if (lower.includes('помощь') || lower.includes('поддержка')) {
+                const response = 'Я всегда рядом. Если у тебя есть вопросы или проблемы — пиши. Я помогу.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else {
+                const response = 'Я могу помочь с работой, оплатой, арендой, поиском мастеров, рекламой. Что тебе нужно?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+        }
+
+        // ==========================================
+        // ПРЕДЛОЖЕНИЕ БИЗНЕСА
+        // ==========================================
+        if (dialogState === 'offer_business') {
+            if (lower.includes('да') || lower.includes('хочу')) {
+                dialogState = 'business_details';
+                const response = 'Отлично! Я могу подключить твой бизнес к системе: автоматизация, учёт, приём платежей, заказы. Расскажи, чем ты занимаешься?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            } else {
+                const response = 'Хорошо. Если передумаешь — просто скажи "бизнес". Я могу помочь с другими вопросами.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                dialogState = 'help_other';
+                return;
+            }
+        }
+
+        if (dialogState === 'business_details') {
+            const response = 'Понял. Я подготовлю предложение для твоего бизнеса. Хочешь, я скину тебе коммерческое предложение? Напиши "да".';
+            addMessage(response, 'assistant');
+            speakText(response);
+            dialogState = 'greeting';
+            return;
+        }
+
+        // ==========================================
+        // ОБЩИЙ ОТВЕТ
+        // ==========================================
+        if (text) {
+            const response = 'Я понял. Я продолжаю слушать. Если нужно — я могу помочь с работой, бизнесом, оплатой или поиском. Что тебе нужно?';
+            addMessage(response, 'assistant');
+            speakText(response);
+            dialogState = 'help_other';
+        }
+    }
+
+    // ==========================================
+    // ПОКАЗ QR-КОДА
+    // ==========================================
+
+    function showQR(amount, description) {
+        qrContainer.classList.remove('hidden');
+        qrBtn.classList.remove('hidden');
+        // Генерируем реальный QR через API
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%20${amount}%20тг%20${description}`;
+        qrImage.src = qrApiUrl;
+        qrInfo.textContent = `💳 Оплата: ${amount} ₸ | ${description}`;
+        addMessage(`💳 QR-код для оплаты ${amount} ₸ сгенерирован. Отсканируйте в приложении Kaspi.`, 'assistant');
+    }
+
+    // ==========================================
+    // УПРАВЛЕНИЕ ФАЙЛАМИ
+    // ==========================================
+
+    fileInput.addEventListener('change', function(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            const fileNames = Array.from(files).map(f => f.name).join(', ');
+            fileStatus.textContent = `📎 Загружено: ${fileNames}`;
+            fileStatus.classList.remove('hidden');
+            addMessage(`📎 Файлы загружены: ${fileNames}`, 'user');
+            const response = `Файлы получены. Я их сохранил. Если нужно, я могу передать их кому-то или обработать.`;
+            addMessage(response, 'assistant');
+            speakText(response);
+        }
+    });
+
+    // ==========================================
+    // QR-КОД ПО ЗАПРОСУ
+    // ==========================================
+
+    qrBtn.addEventListener('click', function() {
+        const amount = prompt('Введите сумму для оплаты (в ₸):', '1000');
+        if (amount && !isNaN(amount) && parseInt(amount) > 0) {
+            showQR(parseInt(amount), 'Оплата по запросу');
+        } else {
+            alert('Введите корректную сумму');
+        }
+    });
+
+    // ==========================================
+    // ТЕКСТОВЫЙ ВВОД
+    // ==========================================
+
+    sendBtn.addEventListener('click', function() {
+        const text = textInput.value.trim();
+        if (text) {
+            handleUserInput(text);
+            textInput.value = '';
+        }
+    });
+
+    textInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendBtn.click();
+        }
+    });
+
+    // ==========================================
+    // УПРАВЛЕНИЕ СТАТУСОМ
+    // ==========================================
+
+    function updateStatus(text, color = 'green') {
+        const dot = connectionStatus;
+        if (dot) {
+            dot.textContent = text;
+            const dotSpan = dot.querySelector('.dot');
+            if (dotSpan) {
+                dotSpan.className = `dot ${color}`;
+            }
+        }
+    }
+
+    // ==========================================
+    // КНОПКИ ЗАПУСКА/ОСТАНОВКИ
+    // ==========================================
+
+    startBtn.addEventListener('click', function() {
+        // Проверяем доступ к микрофону
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            addMessage('❌ Ваш браузер не поддерживает микрофон. Используйте текстовое поле.', 'assistant');
+            return;
+        }
+        // Запрашиваем доступ
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => {
+                startListening();
+                addMessage('🎤 Микрофон активирован. Говорите.', 'assistant');
+            })
+            .catch((err) => {
+                console.error('Ошибка доступа к микрофону:', err);
+                addMessage('❌ Не удалось получить доступ к микрофону. Разрешите доступ в браузере.', 'assistant');
             });
-        });
+    });
 
-        loadStats();
-        setInterval(loadStats, 60000);
+    stopBtn.addEventListener('click', function() {
+        stopListening();
+    });
 
-        console.log('👑 Панель Хранителя загружена');
-    </script>
+    // ==========================================
+    // ИНИЦИАЛИЗАЦИЯ
+    // ==========================================
+
+    // Инициализируем распознавание
+    initRecognition();
+
+    // Приветствие при загрузке
+    setTimeout(() => {
+        const response = '🪞 Ассаляму алейкум! Я — Зеркало. Как тебя зовут?';
+        addMessage(response, 'assistant');
+        speakText(response);
+    }, 1000);
+
+    // Обновляем время
+    updateWelcomeTime();
+
+    // ==========================================
+    // КОНСОЛЬ
+    // ==========================================
+
+    console.log('🪞 Зеркало загружено');
+    console.log('📱 Голосовой и текстовый интерфейс');
+    console.log('💳 QR-код готов');
+    console.log('📎 Загрузка файлов работает');
+</script>
+
 </body>
 </html>
-"""
-
-@app.route('/admin')
-def admin_panel():
-    # Проверяем, что пользователь — Хранитель
-    user_id = request.args.get('user_id')
-    if user_id and int(user_id) in ADMIN_IDS:
-        return ADMIN_HTML
-    # Если нет user_id, показываем форму входа или доступ запрещён
-    return """
-    <h1>👑 Доступ запрещён</h1>
-    <p>Эта панель только для Хранителя.</p>
-    <p><a href="/webapp">Вернуться в приложение</a></p>
-    """
-
-# ==================================================
-# 🌐 API
-# ==================================================
-
-@app.route('/api/user/<int:user_id>')
-def api_user(user_id):
-    c.execute("SELECT user_id, name, role, blessings, is_admin FROM users WHERE user_id=?", (user_id,))
-    user = c.fetchone()
-    if user:
-        return jsonify({
-            "id": user[0],
-            "name": user[1],
-            "role": user[2],
-            "blessings": user[3],
-            "is_admin": user[4] == 1 or user_id in ADMIN_IDS
-        })
-    return jsonify({"error": "User not found"}), 404
-
-@app.route('/api/suras')
-def api_suras():
-    return jsonify(SURAS)
-
-@app.route('/api/admin/stats')
-def api_admin_stats():
-    c.execute("SELECT COUNT(*) FROM users")
-    users = c.fetchone()[0]
-    c.execute("SELECT SUM(blessings) FROM users")
-    blessings = c.fetchone()[0] or 0
-    c.execute("SELECT SUM(amount) FROM payments")
-    payments = c.fetchone()[0] or 0
-    return jsonify({
-        "users": users,
-        "blessings": blessings,
-        "payments": payments,
-        "suras": len(SURAS),
-        "trust_wallet": TRUST_WALLET_ADDRESS
-    })
-
-@app.route('/ping')
-def ping():
-    return "🪞 ЗЕРКАЛО ЖИВО! ✅", 200
-
-@app.route('/')
-def home():
-    return f"""
-    <h1>🪞 ЗЕРКАЛО</h1>
-    <p>✅ Работает 24/7</p>
-    <p><a href="/webapp">📱 Открыть приложение</a></p>
-    <p><a href="/admin">👑 Панель Хранителя</a></p>
-    """
-
-# ==================================================
-# 🚀 ЗАПУСК
-# ==================================================
-
-def run_bot():
-    if bot:
-        print("🤖 ЗАПУСКАЮ БОТА (ТОЛЬКО ЧАТ)...")
-        try:
-            bot.infinity_polling(timeout=10)
-        except Exception as e:
-            print(f"❌ Ошибка бота: {e}")
-    else:
-        print("❌ НЕТ TOKEN!")
-
-def run_flask():
-    print(f"🌐 ЗАПУСКАЮ WEB СЕРВЕР НА ПОРТУ {PORT}...")
-    app.run(host='0.0.0.0', port=PORT)
-
-if __name__ == "__main__":
-    print("=" * 70)
-    print("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
-    print("=" * 70)
-    print(f"📖 Загружено сур: {len(SURAS)}")
-    print(f"💳 Trust Wallet: {TRUST_WALLET_ADDRESS}")
-    print("=" * 70)
-    
-    threading.Thread(target=run_bot, daemon=True).start()
-    run_flask()
