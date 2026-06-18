@@ -71,15 +71,6 @@
             color: #a0a0b0;
             line-height: 1.5;
         }
-        .card-badge {
-            display: inline-block;
-            background: rgba(240,194,127,0.12);
-            color: #f0c27f;
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            margin-top: 8px;
-        }
         .menu {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -122,6 +113,14 @@
             color: #505060;
             border-top: 1px solid #1a1a2e;
         }
+        .sura-badge {
+            display: inline-block;
+            background: rgba(240,194,127,0.1);
+            color: #f0c27f;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
         .role-badge {
             display: inline-block;
             padding: 2px 12px;
@@ -154,6 +153,7 @@
             <div class="card-desc">
                 Скажи «Отрази меня», и я помогу тебе увидеть свой путь.
                 Ты не один. <span class="role-badge user" id="roleBadge">Пользователь</span>
+                <span class="sura-badge" id="suraCount">📖 0 сур</span>
             </div>
         </div>
 
@@ -187,7 +187,6 @@
         let userId = null;
         let isAdmin = false;
 
-        // Получаем ID из Telegram
         try {
             const tg = window.Telegram?.WebApp;
             if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -195,7 +194,6 @@
             }
         } catch(e) {}
 
-        // Если ID нет — используем ID Хранителя (для теста)
         if (!userId) {
             userId = 5409420822;
             console.log('🪞 Тестовый режим: Хранитель');
@@ -241,13 +239,23 @@
             }
         }
 
+        async function loadSuraCount() {
+            try {
+                const res = await fetch('/api/suras');
+                const suras = await res.json();
+                document.getElementById('suraCount').textContent = `📖 ${suras.length} сур`;
+            } catch(e) {
+                console.log('Ошибка загрузки сур:', e);
+            }
+        }
+
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', function(e) {
                 e.preventDefault();
                 const action = this.dataset.action;
                 try {
                     if (window.Telegram?.WebApp) {
-                        Telegram.WebApp.sendData(action);
+                        Telegram.WebApp.sendData(JSON.stringify({action: action}));
                         Telegram.WebApp.close();
                     } else {
                         alert('🪞 Действие: ' + action);
@@ -260,7 +268,9 @@
 
         loadUser();
         loadOrders();
+        loadSuraCount();
         setInterval(loadOrders, 30000);
+        setInterval(loadSuraCount, 60000);
 
         console.log('🪞 Зеркало загружено!');
         console.log('👤 ID:', userId);
