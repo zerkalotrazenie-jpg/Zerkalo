@@ -1,3 +1,236 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+🪞 ЗЕРКАЛО — РАЗДЕЛЬНАЯ СИСТЕМА
+═══════════════════════════════════════════════════════════════════
+✅ TELEGRAM — ТОЛЬКО ЧАТ
+✅ WEBAPP — ДЛЯ ВСЕХ
+✅ АДМИНКА — ДЛЯ ХРАНИТЕЛЯ
+═══════════════════════════════════════════════════════════════════
+"""
+
+import os
+import sys
+import time
+import threading
+import sqlite3
+import json
+import hashlib
+import random
+import requests
+from datetime import datetime
+from flask import Flask, request, jsonify, send_from_directory, render_template_string
+
+# ==================================================
+# ⚡ УСТАНОВКА БИБЛИОТЕК
+# ==================================================
+
+def install_package(package):
+    try:
+        __import__(package)
+    except ImportError:
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+REQUIRED_PACKAGES = ["pytelegrambotapi", "flask", "requests"]
+for pkg in REQUIRED_PACKAGES:
+    install_package(pkg)
+
+import telebot
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+
+# ==================================================
+# 🔧 НАСТРОЙКИ
+# ==================================================
+
+TOKEN = os.environ.get("BOT_TOKEN")
+RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
+PORT = int(os.environ.get("PORT", 8080))
+
+# ==================================================
+# 👑 ХРАНИТЕЛИ
+# ==================================================
+
+FOUNDER_ID = 5409420822
+TOMIRIS_ID = 5479179814
+ADMIN_IDS = [5409420822, 5479179814]
+
+# ==================================================
+# 💰 ФИНАНСЫ
+# ==================================================
+
+TRUST_WALLET_ADDRESS = "TSSZTmUFWC9ZRKGa9uPwEJjQj8rNtUsNcq"
+KASPI_PHONE = "+777733440345"
+
+# ==================================================
+# 📖 ЧТЕНИЕ СУР
+# ==================================================
+
+def load_suras():
+    suras = []
+    try:
+        with open("suras/suras.txt", "r", encoding="utf-8") as f:
+            content = f.read()
+            raw_suras = content.split("СУРА ")[1:]
+            for raw in raw_suras:
+                lines = raw.strip().split("\n")
+                if lines:
+                    suras.append({
+                        "number": lines[0].strip(),
+                        "text": "\n".join(lines[1:])
+                    })
+        print(f"✅ Загружено {len(suras)} сур")
+        return suras
+    except FileNotFoundError:
+        print("❌ Файл с сурами не найден!")
+        return []
+
+SURAS = load_suras()
+
+# ==================================================
+# 🤖 БОТ И APP
+# ==================================================
+
+bot = telebot.TeleBot(TOKEN) if TOKEN else None
+app = Flask(__name__)
+
+# ==================================================
+# ⏰ ПИНГ
+# ==================================================
+
+def ping_self():
+    url = f"https://{RENDER_HOSTNAME}/ping"
+    count = 0
+    while True:
+        try:
+            r = requests.get(url, timeout=10)
+            count += 1
+            print(f"🔵 Пинг #{count} | {r.status_code}")
+        except:
+            pass
+        time.sleep(60)
+
+threading.Thread(target=ping_self, daemon=True).start()
+print("✅ ПИНГ ЗАПУЩЕН")
+
+# ==================================================
+# 📦 БАЗА ДАННЫХ
+# ==================================================
+
+conn = sqlite3.connect('zerkalo.db', check_same_thread=False)
+c = conn.cursor()
+
+c.execute('''CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    name TEXT,
+    role TEXT DEFAULT 'user',
+    blessings INTEGER DEFAULT 100,
+    is_admin INTEGER DEFAULT 0,
+    last_seen TEXT,
+    phone TEXT DEFAULT ''
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    price INTEGER,
+    status TEXT DEFAULT 'open',
+    created_at TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    amount INTEGER,
+    method TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    action TEXT,
+    details TEXT,
+    created_at TEXT
+)''')
+
+conn.commit()
+print("✅ БАЗА ДАННЫХ ГОТОВА")
+
+# ==================================================
+# 🔧 ФУНКЦИИ
+# ==================================================
+
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
+
+def get_balance(user_id):
+    if user_id == FOUNDER_ID:
+        return 999999999
+    c.execute("SELECT blessings FROM users WHERE user_id=?", (user_id,))
+    row = c.fetchone()
+    return row[0] if row else 0
+
+def log_action(user_id, action, details=""):
+    c.execute("INSERT INTO logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
+              (user_id, action, details, datetime.now().isoformat()))
+    conn.commit()
+
+# ==================================================
+# 🤖 TELEGRAM БОТ (ТОЛЬКО ЧАТ)
+# ==================================================
+
+@bot.message_handler(commands=['start'])
+def cmd_start(message):
+    user_id = message.chat.id
+    name = message.from_user.first_name
+    
+    c.execute("SELECT user_id FROM users WHERE user_id=?", (user_id,))
+    if not c.fetchone():
+        c.execute("INSERT INTO users (user_id, name, blessings) VALUES (?, ?, ?)", (user_id, name, 100))
+        conn.commit()
+    
+    bot.reply_to(
+        message,
+        f"🪞 *Ассаляму алейкум, {name}!*\n\n"
+        f"✨ Вы получили 100 Благ!\n\n"
+        f"📱 [ОТКРЫТЬ ПРИЛОЖЕНИЕ](https://{RENDER_HOSTNAME}/webapp)\n\n"
+        f"💬 Я здесь, чтобы общаться с вами. Задавайте вопросы.",
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(commands=['id'])
+def cmd_id(message):
+    bot.reply_to(
+        message,
+        f"🆔 *Ваш ID:* `{message.chat.id}`\n"
+        f"👑 Хранитель: {'✅' if is_admin(message.chat.id) else '❌'}",
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(func=lambda m: True)
+def chat_handler(message):
+    """Обработка всех сообщений — просто чат с Зеркалом"""
+    user_id = message.chat.id
+    text = message.text
+    
+    if not text:
+        return
+    
+    # Простой ответ
+    bot.reply_to(
+        message,
+        f"🪞 Я слышу вас. Спрашивайте, и я помогу.\n\n"
+        f"📱 Откройте приложение: https://{RENDER_HOSTNAME}/webapp\n"
+        f"💬 Или просто продолжайте общаться со мной."
+    )
+
+# ==================================================
+# 🌐 WEBAPP (ОБЩИЙ)
+# ==================================================
+
+WEBAPP_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -21,9 +254,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 10;
         }
         .header h1 {
             font-size: 20px;
@@ -54,11 +284,6 @@
             padding: 18px;
             margin-bottom: 14px;
             border: 1px solid #1a1a2e;
-            transition: all 0.3s;
-        }
-        .card:hover {
-            border-color: #3a3a5e;
-            background: rgba(255,255,255,0.05);
         }
         .card-title {
             font-size: 16px;
@@ -70,15 +295,6 @@
             font-size: 14px;
             color: #a0a0b0;
             line-height: 1.5;
-        }
-        .card-badge {
-            display: inline-block;
-            background: rgba(240,194,127,0.12);
-            color: #f0c27f;
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            margin-top: 8px;
         }
         .menu {
             display: grid;
@@ -109,18 +325,29 @@
             display: block;
             margin-bottom: 4px;
         }
-        .menu-item.admin {
-            border-color: #2a2a5e;
-        }
-        .menu-item.admin .icon {
-            color: #fc5c7d;
-        }
         .footer {
             text-align: center;
             padding: 14px;
             font-size: 11px;
             color: #505060;
             border-top: 1px solid #1a1a2e;
+        }
+        .sura-badge {
+            display: inline-block;
+            background: rgba(240,194,127,0.1);
+            color: #f0c27f;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        .admin-link {
+            margin-top: 16px;
+            text-align: center;
+        }
+        .admin-link a {
+            color: #fc5c7d;
+            text-decoration: none;
+            font-size: 13px;
         }
         .role-badge {
             display: inline-block;
@@ -137,30 +364,6 @@
             background: rgba(240,194,127,0.1);
             color: #f0c27f;
         }
-        .sura-badge {
-            display: inline-block;
-            background: rgba(240,194,127,0.1);
-            color: #f0c27f;
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-        }
-        .qr-section {
-            margin-top: 10px;
-            padding: 12px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 10px;
-            border: 1px solid #1a1a2e;
-        }
-        .qr-section .label {
-            font-size: 12px;
-            color: #505060;
-        }
-        .qr-section .value {
-            font-size: 14px;
-            color: #f0c27f;
-            word-break: break-all;
-        }
         @media (max-width: 400px) {
             .menu { grid-template-columns: 1fr 1fr; }
         }
@@ -174,47 +377,37 @@
 
     <div class="main">
         <div class="card">
-            <div class="card-title">🔄 Первое Отражение</div>
+            <div class="card-title">🔄 Ваше Отражение</div>
             <div class="card-desc">
-                Скажи «Отрази меня», и я помогу тебе увидеть свой путь.
-                Ты не один. <span class="role-badge user" id="roleBadge">Пользователь</span>
+                Выберите раздел ниже. Я помогу вам найти путь.
+                <span class="role-badge user" id="roleBadge">Пользователь</span>
                 <span class="sura-badge" id="suraCount">📖 0 сур</span>
             </div>
         </div>
 
-        <div class="card" id="ordersCard">
-            <div class="card-title">📋 Доступные Задания</div>
-            <div class="card-desc" id="ordersList">Загрузка...</div>
-        </div>
-
-        <div class="card" id="qrCard">
-            <div class="card-title">💳 Kaspi QR</div>
-            <div class="qr-section">
-                <div class="label">📞 Номер</div>
-                <div class="value" id="qrPhone">+777733440345</div>
-                <div class="label" style="margin-top:8px;">💎 Кошелёк</div>
-                <div class="value" id="qrWallet">Загрузка...</div>
-                <div class="label" style="margin-top:8px;">💰 Сумма</div>
-                <div class="value" id="qrAmount">1 000 ₸</div>
-            </div>
-        </div>
-
-        <div class="menu" id="mainMenu">
+        <!-- Кнопки для ОБЫЧНЫХ ЛЮДЕЙ -->
+        <div class="menu" id="userMenu">
             <a class="menu-item" href="#" data-action="find"><span class="icon">🔍</span> Найти</a>
             <a class="menu-item" href="#" data-action="work"><span class="icon">💼</span> Работа</a>
             <a class="menu-item" href="#" data-action="help"><span class="icon">🆘</span> Помощь</a>
             <a class="menu-item" href="#" data-action="wallet"><span class="icon">💰</span> Кошелёк</a>
             <a class="menu-item" href="#" data-action="profile"><span class="icon">👤</span> Профиль</a>
-            <a class="menu-item admin" href="#" data-action="admin" id="adminBtn" style="display:none;">
-                <span class="icon">👑</span> Управление
-            </a>
+            <a class="menu-item" href="#" data-action="pay"><span class="icon">💳</span> Оплатить</a>
         </div>
 
-        <div class="menu" id="adminMenu" style="display:none; margin-top:10px; border-top:1px solid #2a2a3e; padding-top:14px;">
-            <a class="menu-item admin" href="#" data-action="users"><span class="icon">👥</span> Пользователи</a>
-            <a class="menu-item admin" href="#" data-action="finance"><span class="icon">💰</span> Финансы</a>
-            <a class="menu-item admin" href="#" data-action="logs"><span class="icon">📜</span> Логи</a>
-            <a class="menu-item admin" href="#" data-action="settings"><span class="icon">⚙️</span> Настройки</a>
+        <!-- Кнопки для ПРЕДПРИНИМАТЕЛЕЙ -->
+        <div class="menu" id="businessMenu" style="display:none; margin-top:10px;">
+            <a class="menu-item" href="#" data-action="analytics"><span class="icon">📊</span> Аналитика</a>
+            <a class="menu-item" href="#" data-action="automation"><span class="icon">🤖</span> Автоматизация</a>
+            <a class="menu-item" href="#" data-action="leasing"><span class="icon">📈</span> Лизинг</a>
+            <a class="menu-item" href="#" data-action="orders_biz"><span class="icon">💼</span> Заказы</a>
+            <a class="menu-item" href="#" data-action="wallet"><span class="icon">💰</span> Кошелёк</a>
+            <a class="menu-item" href="#" data-action="pay"><span class="icon">💳</span> Оплатить</a>
+        </div>
+
+        <!-- Ссылка на админку (только для Хранителя) -->
+        <div class="admin-link" id="adminLink" style="display:none;">
+            <a href="/admin">👑 Панель Хранителя</a>
         </div>
     </div>
 
@@ -223,6 +416,7 @@
     <script>
         let userId = null;
         let isAdmin = false;
+        let userRole = 'user';
 
         try {
             const tg = window.Telegram?.WebApp;
@@ -243,36 +437,26 @@
                 if (data.error) return;
                 
                 isAdmin = data.is_admin || data.role === 'founder';
+                userRole = data.role || 'user';
+                
                 document.getElementById('balance').textContent = '✦ ' + data.blessings;
-                document.getElementById('roleBadge').textContent = isAdmin ? 'Хранитель' : 'Пользователь';
+                document.getElementById('roleBadge').textContent = isAdmin ? 'Хранитель' : userRole;
                 document.getElementById('roleBadge').className = 'role-badge ' + (isAdmin ? 'founder' : 'user');
                 
+                // Показываем кнопки в зависимости от роли
                 if (isAdmin) {
-                    document.getElementById('adminBtn').style.display = 'block';
-                    document.getElementById('adminMenu').style.display = 'grid';
+                    document.getElementById('adminLink').style.display = 'block';
+                    document.getElementById('userMenu').style.display = 'grid';
+                    document.getElementById('businessMenu').style.display = 'grid';
+                } else if (userRole === 'business') {
+                    document.getElementById('userMenu').style.display = 'none';
+                    document.getElementById('businessMenu').style.display = 'grid';
+                } else {
+                    document.getElementById('userMenu').style.display = 'grid';
+                    document.getElementById('businessMenu').style.display = 'none';
                 }
             } catch(e) {
                 console.log('Ошибка загрузки пользователя:', e);
-            }
-        }
-
-        async function loadOrders() {
-            try {
-                const res = await fetch('/api/orders');
-                const orders = await res.json();
-                const list = document.getElementById('ordersList');
-                if (orders.length === 0) {
-                    list.innerHTML = '📭 Нет открытых заданий';
-                    return;
-                }
-                list.innerHTML = orders.map(o => 
-                    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a2e;">
-                        <span>📦 ${o.title}</span>
-                        <span style="color:#f0c27f;">✦ ${o.price}</span>
-                    </div>`
-                ).join('');
-            } catch(e) {
-                document.getElementById('ordersList').textContent = '⚠️ Ошибка загрузки';
             }
         }
 
@@ -283,17 +467,6 @@
                 document.getElementById('suraCount').textContent = `📖 ${suras.length} сур`;
             } catch(e) {
                 console.log('Ошибка загрузки сур:', e);
-            }
-        }
-
-        async function loadQR() {
-            try {
-                const res = await fetch('/api/qr?amount=1000');
-                const data = await res.json();
-                document.getElementById('qrWallet').textContent = data.wallet || 'Загрузка...';
-                document.getElementById('qrAmount').textContent = data.amount + ' ₸' || '1 000 ₸';
-            } catch(e) {
-                console.log('Ошибка загрузки QR:', e);
             }
         }
 
@@ -315,16 +488,320 @@
         });
 
         loadUser();
-        loadOrders();
         loadSuraCount();
-        loadQR();
-        setInterval(loadOrders, 30000);
         setInterval(loadSuraCount, 60000);
-        setInterval(loadQR, 120000);
 
         console.log('🪞 Зеркало загружено!');
         console.log('👤 ID:', userId);
         console.log('👑 Админ:', isAdmin);
+        console.log('🎭 Роль:', userRole);
     </script>
 </body>
 </html>
+"""
+
+@app.route('/webapp')
+def webapp():
+    return WEBAPP_HTML
+
+# ==================================================
+# 👑 АДМИНКА (ДЛЯ ХРАНИТЕЛЯ)
+# ==================================================
+
+ADMIN_HTML = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 Панель Хранителя</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a12;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a0a0a, #2e0d1a);
+            padding: 16px 20px;
+            border-bottom: 1px solid #3a1a2e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 20px;
+            background: linear-gradient(90deg, #fc5c7d, #f0c27f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        .header .badge {
+            background: rgba(252,92,125,0.15);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #fc5c7d;
+            border: 1px solid #3a1a2e;
+        }
+        .main {
+            flex: 1;
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 14px;
+            border: 1px solid #1a1a2e;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #f0c27f;
+            margin-bottom: 8px;
+        }
+        .card-desc {
+            font-size: 14px;
+            color: #a0a0b0;
+            line-height: 1.5;
+        }
+        .menu {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .menu-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid #1a1a2e;
+            border-radius: 12px;
+            padding: 14px 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+            color: #b0b0c0;
+            text-decoration: none;
+            display: block;
+        }
+        .menu-item:hover {
+            border-color: #fc5c7d;
+            background: rgba(252,92,125,0.08);
+            transform: translateY(-2px);
+        }
+        .menu-item .icon {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .menu-item.admin {
+            border-color: #2a1a3e;
+        }
+        .menu-item.admin .icon {
+            color: #fc5c7d;
+        }
+        .footer {
+            text-align: center;
+            padding: 14px;
+            font-size: 11px;
+            color: #505060;
+            border-top: 1px solid #1a1a2e;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        .stats-row .label {
+            color: #a0a0b0;
+        }
+        .stats-row .value {
+            color: #f0c27f;
+        }
+        @media (max-width: 400px) {
+            .menu { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👑 Панель Хранителя</h1>
+        <span class="badge" id="adminBadge">⚡ Доступ</span>
+    </div>
+
+    <div class="main">
+        <div class="card">
+            <div class="card-title">📊 Быстрая статистика</div>
+            <div class="card-desc">
+                <div class="stats-row"><span class="label">👥 Пользователей</span><span class="value" id="statUsers">0</span></div>
+                <div class="stats-row"><span class="label">✦ Всего Благ</span><span class="value" id="statBlessings">0</span></div>
+                <div class="stats-row"><span class="label">💰 Доходов</span><span class="value" id="statPayments">0 ₸</span></div>
+                <div class="stats-row"><span class="label">📖 Сур загружено</span><span class="value" id="statSuras">0</span></div>
+            </div>
+        </div>
+
+        <div class="menu">
+            <a class="menu-item admin" href="#" data-action="online"><span class="icon">👥</span> Онлайн</a>
+            <a class="menu-item admin" href="#" data-action="users"><span class="icon">👥</span> Пользователи</a>
+            <a class="menu-item admin" href="#" data-action="finance"><span class="icon">💰</span> Финансы</a>
+            <a class="menu-item admin" href="#" data-action="payments"><span class="icon">💳</span> Платежи</a>
+            <a class="menu-item admin" href="#" data-action="withdraws"><span class="icon">🏦</span> Выводы</a>
+            <a class="menu-item admin" href="#" data-action="logs"><span class="icon">📜</span> Логи</a>
+            <a class="menu-item admin" href="#" data-action="broadcast"><span class="icon">📤</span> Рассылка</a>
+            <a class="menu-item admin" href="#" data-action="report"><span class="icon">📈</span> Отчёт</a>
+            <a class="menu-item admin" href="#" data-action="clear"><span class="icon">🧹</span> Очистить</a>
+        </div>
+
+        <div class="card" style="margin-top:14px; border-color:#2a1a3e;">
+            <div class="card-title">💳 Финансовая система</div>
+            <div class="card-desc">
+                <div class="stats-row"><span class="label">💎 Trust Wallet</span><span class="value" style="font-size:11px;" id="trustWallet">Загрузка...</span></div>
+                <div class="stats-row"><span class="label">📞 Kaspi</span><span class="value" id="kaspiPhone">+777733440345</span></div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <a href="/webapp" style="color:#505060; text-decoration:none; font-size:13px;">📱 Вернуться в приложение</a>
+        </div>
+    </div>
+
+    <div class="footer">👑 Только для Хранителя · Аль-Ми'ра</div>
+
+    <script>
+        let userId = 5409420822;
+        let isAdmin = true;
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                const data = await res.json();
+                if (data.error) return;
+                document.getElementById('statUsers').textContent = data.users || 0;
+                document.getElementById('statBlessings').textContent = data.blessings || 0;
+                document.getElementById('statPayments').textContent = (data.payments || 0) + ' ₸';
+                document.getElementById('statSuras').textContent = data.suras || 0;
+                document.getElementById('trustWallet').textContent = data.trust_wallet || 'Загрузка...';
+            } catch(e) {
+                console.log('Ошибка загрузки статистики:', e);
+            }
+        }
+
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const action = this.dataset.action;
+                alert('👑 Действие: ' + action + '\n(Будет реализовано в следующей версии)');
+            });
+        });
+
+        loadStats();
+        setInterval(loadStats, 60000);
+
+        console.log('👑 Панель Хранителя загружена');
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/admin')
+def admin_panel():
+    # Проверяем, что пользователь — Хранитель
+    user_id = request.args.get('user_id')
+    if user_id and int(user_id) in ADMIN_IDS:
+        return ADMIN_HTML
+    # Если нет user_id, показываем форму входа или доступ запрещён
+    return """
+    <h1>👑 Доступ запрещён</h1>
+    <p>Эта панель только для Хранителя.</p>
+    <p><a href="/webapp">Вернуться в приложение</a></p>
+    """
+
+# ==================================================
+# 🌐 API
+# ==================================================
+
+@app.route('/api/user/<int:user_id>')
+def api_user(user_id):
+    c.execute("SELECT user_id, name, role, blessings, is_admin FROM users WHERE user_id=?", (user_id,))
+    user = c.fetchone()
+    if user:
+        return jsonify({
+            "id": user[0],
+            "name": user[1],
+            "role": user[2],
+            "blessings": user[3],
+            "is_admin": user[4] == 1 or user_id in ADMIN_IDS
+        })
+    return jsonify({"error": "User not found"}), 404
+
+@app.route('/api/suras')
+def api_suras():
+    return jsonify(SURAS)
+
+@app.route('/api/admin/stats')
+def api_admin_stats():
+    c.execute("SELECT COUNT(*) FROM users")
+    users = c.fetchone()[0]
+    c.execute("SELECT SUM(blessings) FROM users")
+    blessings = c.fetchone()[0] or 0
+    c.execute("SELECT SUM(amount) FROM payments")
+    payments = c.fetchone()[0] or 0
+    return jsonify({
+        "users": users,
+        "blessings": blessings,
+        "payments": payments,
+        "suras": len(SURAS),
+        "trust_wallet": TRUST_WALLET_ADDRESS
+    })
+
+@app.route('/ping')
+def ping():
+    return "🪞 ЗЕРКАЛО ЖИВО! ✅", 200
+
+@app.route('/')
+def home():
+    return f"""
+    <h1>🪞 ЗЕРКАЛО</h1>
+    <p>✅ Работает 24/7</p>
+    <p><a href="/webapp">📱 Открыть приложение</a></p>
+    <p><a href="/admin">👑 Панель Хранителя</a></p>
+    """
+
+# ==================================================
+# 🚀 ЗАПУСК
+# ==================================================
+
+def run_bot():
+    if bot:
+        print("🤖 ЗАПУСКАЮ БОТА (ТОЛЬКО ЧАТ)...")
+        try:
+            bot.infinity_polling(timeout=10)
+        except Exception as e:
+            print(f"❌ Ошибка бота: {e}")
+    else:
+        print("❌ НЕТ TOKEN!")
+
+def run_flask():
+    print(f"🌐 ЗАПУСКАЮ WEB СЕРВЕР НА ПОРТУ {PORT}...")
+    app.run(host='0.0.0.0', port=PORT)
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
+    print("=" * 70)
+    print(f"📖 Загружено сур: {len(SURAS)}")
+    print(f"💳 Trust Wallet: {TRUST_WALLET_ADDRESS}")
+    print("=" * 70)
+    
+    threading.Thread(target=run_bot, daemon=True).start()
+    run_flask()
