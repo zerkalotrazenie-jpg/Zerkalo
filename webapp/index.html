@@ -71,6 +71,15 @@
             color: #a0a0b0;
             line-height: 1.5;
         }
+        .card-badge {
+            display: inline-block;
+            background: rgba(240,194,127,0.12);
+            color: #f0c27f;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 8px;
+        }
         .menu {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -113,14 +122,6 @@
             color: #505060;
             border-top: 1px solid #1a1a2e;
         }
-        .sura-badge {
-            display: inline-block;
-            background: rgba(240,194,127,0.1);
-            color: #f0c27f;
-            padding: 2px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-        }
         .role-badge {
             display: inline-block;
             padding: 2px 12px;
@@ -135,6 +136,30 @@
         .role-badge.user {
             background: rgba(240,194,127,0.1);
             color: #f0c27f;
+        }
+        .sura-badge {
+            display: inline-block;
+            background: rgba(240,194,127,0.1);
+            color: #f0c27f;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        .qr-section {
+            margin-top: 10px;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            border: 1px solid #1a1a2e;
+        }
+        .qr-section .label {
+            font-size: 12px;
+            color: #505060;
+        }
+        .qr-section .value {
+            font-size: 14px;
+            color: #f0c27f;
+            word-break: break-all;
         }
         @media (max-width: 400px) {
             .menu { grid-template-columns: 1fr 1fr; }
@@ -160,6 +185,18 @@
         <div class="card" id="ordersCard">
             <div class="card-title">📋 Доступные Задания</div>
             <div class="card-desc" id="ordersList">Загрузка...</div>
+        </div>
+
+        <div class="card" id="qrCard">
+            <div class="card-title">💳 Kaspi QR</div>
+            <div class="qr-section">
+                <div class="label">📞 Номер</div>
+                <div class="value" id="qrPhone">+777733440345</div>
+                <div class="label" style="margin-top:8px;">💎 Кошелёк</div>
+                <div class="value" id="qrWallet">Загрузка...</div>
+                <div class="label" style="margin-top:8px;">💰 Сумма</div>
+                <div class="value" id="qrAmount">1 000 ₸</div>
+            </div>
         </div>
 
         <div class="menu" id="mainMenu">
@@ -249,6 +286,17 @@
             }
         }
 
+        async function loadQR() {
+            try {
+                const res = await fetch('/api/qr?amount=1000');
+                const data = await res.json();
+                document.getElementById('qrWallet').textContent = data.wallet || 'Загрузка...';
+                document.getElementById('qrAmount').textContent = data.amount + ' ₸' || '1 000 ₸';
+            } catch(e) {
+                console.log('Ошибка загрузки QR:', e);
+            }
+        }
+
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -269,8 +317,10 @@
         loadUser();
         loadOrders();
         loadSuraCount();
+        loadQR();
         setInterval(loadOrders, 30000);
         setInterval(loadSuraCount, 60000);
+        setInterval(loadQR, 120000);
 
         console.log('🪞 Зеркало загружено!');
         console.log('👤 ID:', userId);
