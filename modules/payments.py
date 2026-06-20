@@ -38,5 +38,6 @@ def get_price_for_service(service_type):
         "leasing": 50000,
         "automation": 90000,
         "order": 1000,
+        "arbitration": 5000,
     }
     return prices.get(service_type, 1000)
