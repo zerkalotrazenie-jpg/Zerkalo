@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """
-🪞 ЗЕРКАЛО - ПОЛНАЯ СИСТЕМА
+🪞 ЗЕРКАЛО - TELEGRAM БОТ (ТОЛЬКО ССЫЛКА)
 ═══════════════════════════════════════════════════════════════════
-✅ Telegram бот с кнопкой WebApp
-✅ Пинг каждую минуту (НЕ ЗАСЫПАЕТ)
-✅ Разделение по ролям (Хранитель / Семья / Все)
-✅ Переход на WebApp без зависаний
-✅ Все модули подключены
+✅ Приветствие
+✅ Кнопка со ССЫЛКОЙ на WebApp (НЕ WebView!)
+✅ Пинг
+✅ Разделение по ролям
 ═══════════════════════════════════════════════════════════════════
 """
 
@@ -17,12 +16,12 @@ import sys
 import time
 import threading
 import logging
-from flask import Flask, send_from_directory, jsonify, request
+from flask import Flask, send_from_directory
 import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 # ==================================================
-# ⚡ УСТАНОВКА БИБЛИОТЕК (ЕСЛИ НЕ УСТАНОВЛЕНЫ)
+# ⚡ УСТАНОВКА БИБЛИОТЕК
 # ==================================================
 
 def install_package(package):
@@ -43,11 +42,10 @@ TOKEN = os.environ.get("BOT_TOKEN")
 RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
 PORT = int(os.environ.get("PORT", 8080))
 
-# ID Хранителя и семьи
 FOUNDER_ID = 5409420822
 TOMIRIS_ID = 5479179814
 ADMIN_IDS = [5409420822, 5479179814]
-FAMILY_IDS = [5409420822, 5479179814]  # Сюда добавить ID семьи, если есть
+FAMILY_IDS = [5409420822, 5479179814]
 
 # ==================================================
 # 🔐 РОЛИ
@@ -55,9 +53,6 @@ FAMILY_IDS = [5409420822, 5479179814]  # Сюда добавить ID семьи
 
 def is_admin(user_id):
     return user_id in ADMIN_IDS
-
-def is_family(user_id):
-    return user_id in FAMILY_IDS
 
 def get_user_role(user_id):
     if user_id in ADMIN_IDS:
@@ -99,7 +94,7 @@ bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
 # ==================================================
-# ⏰ БЕСКОНЕЧНЫЙ ПИНГ (НЕ ДАЁТ РЕНДЕРУ ЗАСНУТЬ)
+# ⏰ ПИНГ
 # ==================================================
 
 def ping_self():
@@ -113,21 +108,20 @@ def ping_self():
             print(f"🔵 Пинг #{count} | {r.status_code}")
         except:
             pass
-        time.sleep(60)  # Каждую минуту
+        time.sleep(60)
 
 threading.Thread(target=ping_self, daemon=True).start()
-print("✅ ПИНГ ЗАПУЩЕН (каждую минуту)")
+print("✅ ПИНГ ЗАПУЩЕН")
 
 # ==================================================
-# 📱 КНОПКА ПЕРЕХОДА В WEBAPP
+# 📱 КНОПКА СО ССЫЛКОЙ (НЕ WEBVIEW!)
 # ==================================================
 
-def get_webapp_keyboard():
+def get_link_keyboard():
+    """Кнопка, которая отправляет ССЫЛКУ, а не открывает WebView"""
     kb = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-    btn = KeyboardButton(
-        text="📱 ОТКРЫТЬ ЗЕРКАЛО",
-        web_app=WebAppInfo(url=f"https://{RENDER_HOSTNAME}/webapp")
-    )
+    # Обычная кнопка, НЕ web_app
+    btn = KeyboardButton("📱 ОТКРЫТЬ ЗЕРКАЛО В БРАУЗЕРЕ")
     kb.add(btn)
     return kb
 
@@ -152,7 +146,8 @@ WELCOME_TEXT = """
 
 **ВСЁ, ЧТО Я ДЕЛАЮ, — ПРИНОСИТ ДЕНЬГИ.**
 
-Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО»**, чтобы начать.
+Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО В БРАУЗЕРЕ»** — я пришлю ссылку.
+Открой её в браузере (Chrome, Safari), чтобы голос работал.
 """
 
 # ==================================================
@@ -169,7 +164,19 @@ def cmd_start(message):
     bot.reply_to(
         message,
         welcome,
-        reply_markup=get_webapp_keyboard(),
+        reply_markup=get_link_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(commands=['link'])
+def cmd_link(message):
+    """Отправляет прямую ссылку на WebApp"""
+    bot.reply_to(
+        message,
+        f"📱 **ССЫЛКА НА ЗЕРКАЛО:**\n\n"
+        f"https://{RENDER_HOSTNAME}/webapp\n\n"
+        f"📌 Скопируй и вставь в браузер (Chrome, Safari).\n"
+        f"Там работает голосовой ввод.",
         parse_mode="Markdown"
     )
 
@@ -206,20 +213,28 @@ def cmd_stats(message):
         parse_mode="Markdown"
     )
 
-@bot.message_handler(commands=['clear'])
-def cmd_clear(message):
-    user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа.")
-        return
-    bot.reply_to(message, "🧹 Логи очищены!")
+@bot.message_handler(func=lambda m: m.text == "📱 ОТКРЫТЬ ЗЕРКАЛО В БРАУЗЕРЕ")
+def send_link(message):
+    """Когда нажимают кнопку — отправляем ссылку"""
+    bot.reply_to(
+        message,
+        f"📱 **ССЫЛКА НА ЗЕРКАЛО:**\n\n"
+        f"https://{RENDER_HOSTNAME}/webapp\n\n"
+        f"📌 **ВАЖНО:** Открой эту ссылку в браузере (Chrome, Safari).\n"
+        f"🎤 Тогда голосовой ввод будет работать.\n\n"
+        f"📋 Если ссылка не открывается — скопируй её вручную.",
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(func=lambda m: True)
 def echo_all(message):
     bot.reply_to(
         message,
-        "🪞 Я — Зеркало. Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО»**.",
-        reply_markup=get_webapp_keyboard(),
+        f"🪞 Я — Зеркало.\n\n"
+        f"📱 Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО В БРАУЗЕРЕ»**,\n"
+        f"чтобы получить ссылку на приложение.\n\n"
+        f"🌐 Или напиши /link — я пришлю ссылку прямо сюда.",
+        reply_markup=get_link_keyboard(),
         parse_mode="Markdown"
     )
 
