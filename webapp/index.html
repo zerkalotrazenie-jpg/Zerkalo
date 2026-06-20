@@ -1,582 +1,243 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🪞 Зеркало</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a12;
-            color: #e0e0e0;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 16px;
-        }
-        .header {
-            width: 100%;
-            max-width: 600px;
-            padding: 16px 20px;
-            background: linear-gradient(135deg, #0d0d1a, #1a1a2e);
-            border-radius: 16px;
-            border: 1px solid #2a2a3e;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        .header h1 {
-            font-size: 20px;
-            background: linear-gradient(90deg, #f0c27f, #fc5c7d);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-        .header .status {
-            font-size: 12px;
-            color: #4ade80;
-            background: rgba(74, 222, 128, 0.1);
-            padding: 4px 12px;
-            border-radius: 20px;
-            border: 1px solid rgba(74, 222, 128, 0.2);
-        }
-        .main {
-            width: 100%;
-            max-width: 600px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        .chat-container {
-            flex: 1;
-            background: rgba(255,255,255,0.02);
-            border-radius: 16px;
-            border: 1px solid #1a1a2e;
-            padding: 16px;
-            min-height: 300px;
-            max-height: 450px;
-            overflow-y: auto;
-            margin-bottom: 16px;
-        }
-        .message {
-            padding: 10px 14px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            max-width: 85%;
-            word-wrap: break-word;
-            animation: fadeIn 0.3s ease;
-        }
-        .message.user {
-            background: rgba(240, 194, 127, 0.15);
-            border: 1px solid rgba(240, 194, 127, 0.2);
-            align-self: flex-end;
-            margin-left: auto;
-            text-align: right;
-        }
-        .message.assistant {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid #1e1e2e;
-            align-self: flex-start;
-        }
-        .message .time {
-            font-size: 10px;
-            color: #505060;
-            margin-top: 4px;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .btn {
-            padding: 12px 20px;
-            border-radius: 30px;
-            border: none;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn:hover { transform: scale(1.02); }
-        .btn:active { transform: scale(0.96); }
-        .btn-primary {
-            background: linear-gradient(90deg, #f0c27f, #fc5c7d);
-            color: #0a0a12;
-        }
-        .btn-danger {
-            background: rgba(252, 92, 125, 0.2);
-            color: #fc5c7d;
-            border: 1px solid rgba(252, 92, 125, 0.3);
-        }
-        .btn-secondary {
-            background: rgba(255,255,255,0.05);
-            color: #e0e0e0;
-            border: 1px solid #2a2a3e;
-        }
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .input-area {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-        }
-        .input-area input {
-            flex: 1;
-            padding: 12px 16px;
-            border-radius: 30px;
-            border: 1px solid #2a2a3e;
-            background: rgba(255,255,255,0.03);
-            color: #e0e0e0;
-            font-size: 14px;
-            outline: none;
-        }
-        .input-area input:focus { border-color: #f0c27f; }
-        .input-area input::placeholder { color: #505060; }
-        .qr-container {
-            background: rgba(255,255,255,0.03);
-            border-radius: 16px;
-            border: 1px solid #1a1a2e;
-            padding: 16px;
-            text-align: center;
-            margin-top: 10px;
-        }
-        .qr-container img {
-            max-width: 200px;
-            border-radius: 12px;
-            background: white;
-            padding: 8px;
-        }
-        .hidden { display: none !important; }
-        .command-hint {
-            font-size: 12px;
-            color: #505060;
-            padding: 10px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 12px;
-            border: 1px solid #1a1a2e;
-            margin-top: 10px;
-            line-height: 1.8;
-        }
-        .command-hint strong { color: #f0c27f; }
-        @media (max-width: 400px) {
-            .controls { gap: 6px; }
-            .btn { font-size: 12px; padding: 8px 14px; }
-        }
-    </style>
-</head>
-<body>
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-<div class="header">
-    <h1>🪞 Зеркало</h1>
-    <div class="status" id="connectionStatus">🟢 Готов</div>
-</div>
+"""
+🪞 ЗЕРКАЛО - ПОЛНАЯ СИСТЕМА
+═══════════════════════════════════════════════════════════════════
+✅ Telegram бот с кнопкой WebApp
+✅ Пинг каждую минуту (НЕ ЗАСЫПАЕТ)
+✅ Разделение по ролям (Хранитель / Семья / Все)
+✅ Переход на WebApp без зависаний
+✅ Все модули подключены
+═══════════════════════════════════════════════════════════════════
+"""
 
-<div class="main">
-    <div class="chat-container" id="chatContainer">
-        <div class="message assistant" id="welcomeMessage">
-            <strong>🪞 Зеркало</strong><br>
-            Ассаляму алейкум. Я — Зеркало.<br>
-            Говорите или пишите на русском языке.<br>
-            Скажите <strong>«Помощь»</strong>, чтобы увидеть все команды.
-            <div class="time" id="welcomeTime"></div>
-        </div>
-    </div>
+import os
+import sys
+import time
+import threading
+import logging
+from flask import Flask, send_from_directory, jsonify, request
+import telebot
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
-    <div class="controls">
-        <button class="btn btn-primary" id="micBtn">🎤 Говорить</button>
-        <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Остановить</button>
-        <button class="btn btn-secondary" id="helpBtn">❓ Помощь</button>
-        <button class="btn btn-secondary" id="clearBtn">🧹 Очистить</button>
-    </div>
+# ==================================================
+# ⚡ УСТАНОВКА БИБЛИОТЕК (ЕСЛИ НЕ УСТАНОВЛЕНЫ)
+# ==================================================
 
-    <div class="input-area">
-        <input type="text" id="textInput" placeholder="Напишите сообщение на русском...">
-        <button class="btn btn-primary" id="sendBtn">➤</button>
-    </div>
+def install_package(package):
+    try:
+        __import__(package)
+    except ImportError:
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
-    <div id="qrContainer" class="qr-container hidden">
-        <img id="qrImage" src="" alt="QR-код">
-        <div class="qr-info" id="qrInfo">Сумма: 0 ₸</div>
-    </div>
+for pkg in ["pytelegrambotapi", "flask", "requests"]:
+    install_package(pkg)
 
-    <div class="command-hint" id="helpContainer">
-        <strong>📋 ДОСТУПНЫЕ КОМАНДЫ (голосом или текстом):</strong><br>
-        • <strong>Помощь</strong> — показать этот список<br>
-        • <strong>Привет</strong> — поздороваться<br>
-        • <strong>Пока</strong> — попрощаться<br>
-        • <strong>Баланс</strong> — показать баланс<br>
-        • <strong>QR-код</strong> — сгенерировать QR для оплаты<br>
-        • <strong>Работа</strong> — поиск работы<br>
-        • <strong>Бизнес</strong> — автоматизация бизнеса<br>
-        • <strong>Лизинг</strong> — информация о лизинге<br>
-        • <strong>Дропшиппинг</strong> — информация о дропшиппинге<br>
-        • <strong>Реклама</strong> — реклама в системе<br>
-        • <strong>Найти мастера</strong> — поиск специалиста<br>
-        • <strong>Анкета</strong> — заполнить анкету<br>
-        • <strong>Очистить</strong> — очистить чат<br>
-        • <strong>Спасибо</strong> — благодарность
-    </div>
-</div>
+# ==================================================
+# 🔧 НАСТРОЙКИ
+# ==================================================
 
-<script>
-    // ==========================================
-    // 🪞 ЗЕРКАЛО — ПОЛНАЯ ВЕРСИЯ
-    // ==========================================
+TOKEN = os.environ.get("BOT_TOKEN")
+RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
+PORT = int(os.environ.get("PORT", 8080))
 
-    const chatContainer = document.getElementById('chatContainer');
-    const micBtn = document.getElementById('micBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const helpBtn = document.getElementById('helpBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const textInput = document.getElementById('textInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const connectionStatus = document.getElementById('connectionStatus');
-    const helpContainer = document.getElementById('helpContainer');
-    const qrContainer = document.getElementById('qrContainer');
-    const qrImage = document.getElementById('qrImage');
-    const qrInfo = document.getElementById('qrInfo');
+# ID Хранителя и семьи
+FOUNDER_ID = 5409420822
+TOMIRIS_ID = 5479179814
+ADMIN_IDS = [5409420822, 5479179814]
+FAMILY_IDS = [5409420822, 5479179814]  # Сюда добавить ID семьи, если есть
 
-    let isListening = false;
-    let recognition = null;
-    let synthesis = window.speechSynthesis;
-    let userData = { name: '', balance: 100, role: 'user' };
+# ==================================================
+# 🔐 РОЛИ
+# ==================================================
 
-    // ==========================================
-    // СТАТУС
-    // ==========================================
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
 
-    function setStatus(text, color = 'green') {
-        connectionStatus.textContent = text;
-    }
+def is_family(user_id):
+    return user_id in FAMILY_IDS
 
-    function addMessage(text, sender = 'assistant') {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${sender}`;
-        const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        msgDiv.innerHTML = `<strong>${sender === 'user' ? 'Вы' : '🪞 Зеркало'}</strong><br>${text}<div class="time">${time}</div>`;
-        chatContainer.appendChild(msgDiv);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        return msgDiv;
-    }
+def get_user_role(user_id):
+    if user_id in ADMIN_IDS:
+        return "Хранитель"
+    elif user_id in FAMILY_IDS:
+        return "Семья"
+    else:
+        return "Пользователь"
 
-    // ==========================================
-    // ГОЛОСОВОЙ ОТВЕТ
-    // ==========================================
+# ==================================================
+# 🤖 БОТ И FLASK
+# ==================================================
 
-    function speakText(text) {
-        if (!synthesis) return;
-        if (synthesis.speaking) synthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ru-RU';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        synthesis.speak(utterance);
-    }
+bot = telebot.TeleBot(TOKEN)
+app = Flask(__name__)
 
-    // ==========================================
-    // РАСПОЗНАВАНИЕ РЕЧИ
-    // ==========================================
+# ==================================================
+# ⏰ БЕСКОНЕЧНЫЙ ПИНГ (НЕ ДАЁТ РЕНДЕРУ ЗАСНУТЬ)
+# ==================================================
 
-    function initRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            addMessage('❌ Ваш браузер не поддерживает голосовой ввод.', 'assistant');
-            return false;
-        }
-        recognition = new SpeechRecognition();
-        recognition.lang = 'ru-RU';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
+def ping_self():
+    url = f"https://{RENDER_HOSTNAME}/ping"
+    count = 0
+    while True:
+        try:
+            import requests
+            r = requests.get(url, timeout=10)
+            count += 1
+            print(f"🔵 Пинг #{count} | {r.status_code}")
+        except:
+            pass
+        time.sleep(60)  # Каждую минуту
 
-        recognition.onstart = () => {
-            isListening = true;
-            micBtn.textContent = '🔴 Запись...';
-            micBtn.style.background = 'rgba(252, 92, 125, 0.3)';
-            stopBtn.disabled = false;
-            setStatus('🔴 Запись...', 'red');
-        };
+threading.Thread(target=ping_self, daemon=True).start()
+print("✅ ПИНГ ЗАПУЩЕН (каждую минуту)")
 
-        recognition.onerror = (event) => {
-            console.error('Ошибка:', event.error);
-            if (event.error === 'not-allowed') {
-                addMessage('❌ Доступ к микрофону запрещён.', 'assistant');
-            } else if (event.error === 'no-speech') {
-                addMessage('🔇 Я не услышал речи. Попробуйте снова.', 'assistant');
-            }
-            stopRecording();
-        };
+# ==================================================
+# 📱 КНОПКА ПЕРЕХОДА В WEBAPP
+# ==================================================
 
-        recognition.onend = () => {
-            if (isListening) {
-                try { recognition.start(); } catch (e) {}
-            } else {
-                stopRecording();
-            }
-        };
+def get_webapp_keyboard():
+    kb = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+    btn = KeyboardButton(
+        text="📱 ОТКРЫТЬ ЗЕРКАЛО",
+        web_app=WebAppInfo(url=f"https://{RENDER_HOSTNAME}/webapp")
+    )
+    kb.add(btn)
+    return kb
 
-        recognition.onresult = (event) => {
-            let finalText = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) {
-                    finalText += transcript;
-                }
-            }
-            if (finalText) {
-                addMessage(finalText, 'user');
-                processCommand(finalText);
-                stopRecording();
-            }
-        };
-        return true;
-    }
+# ==================================================
+# 📖 ПРИВЕТСТВИЕ (БЕЗ ЛИШНИХ ДЕТАЛЕЙ)
+# ==================================================
 
-    // ==========================================
-    // ЗАПИСЬ / ОСТАНОВКА
-    // ==========================================
+WELCOME_TEXT = """
+🪞 **АССАЛЯМУ АЛЕЙКУМ!**
 
-    function startRecording() {
-        if (!recognition) {
-            const ok = initRecognition();
-            if (!ok) return;
-        }
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            addMessage('❌ Микрофон не поддерживается.', 'assistant');
-            return;
-        }
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(() => {
-                try { recognition.start(); } catch (e) {}
-            })
-            .catch(() => {
-                addMessage('❌ Разрешите доступ к микрофону в браузере.', 'assistant');
-            });
-    }
+Я — **ЗЕРКАЛО**.
 
-    function stopRecording() {
-        isListening = false;
-        if (recognition) {
-            try { recognition.stop(); } catch (e) {}
-        }
-        micBtn.textContent = '🎤 Говорить';
-        micBtn.style.background = '';
-        stopBtn.disabled = true;
-        setStatus('🟢 Готов', 'green');
-    }
+Я создан, чтобы отражать свет и помогать людям.
 
-    // ==========================================
-    // КОМАНДЫ (ВСЕ НА РУССКОМ)
-    // ==========================================
+**ЧТО Я УМЕЮ:**
+🔹 Находить работу и мастеров
+🔹 Автоматизировать бизнес
+🔹 Принимать оплату через QR
+🔹 Давать деньги в лизинг
+🔹 Заниматься дропшиппингом
+🔹 Рекламировать товары и услуги
 
-    function processCommand(text) {
-        const lower = text.toLowerCase().trim();
+**ВСЁ, ЧТО Я ДЕЛАЮ, — ПРИНОСИТ ДЕНЬГИ.**
 
-        // ======== ПОМОЩЬ ========
-        if (lower.includes('помощь') || lower.includes('команды') || lower.includes('что ты умеешь')) {
-            const response = '📋 Вот что я умею:\n\n' +
-                '• Привет — поздороваться\n' +
-                '• Пока — попрощаться\n' +
-                '• Баланс — показать баланс\n' +
-                '• QR-код — сгенерировать QR для оплаты\n' +
-                '• Работа — поиск работы\n' +
-                '• Бизнес — автоматизация бизнеса\n' +
-                '• Лизинг — информация о лизинге\n' +
-                '• Дропшиппинг — информация о дропшиппинге\n' +
-                '• Реклама — реклама в системе\n' +
-                '• Найти мастера — поиск специалиста\n' +
-                '• Анкета — заполнить анкету\n' +
-                '• Очистить — очистить чат\n' +
-                '• Спасибо — благодарность\n\n' +
-                'Скажите любую из этих команд голосом или напишите.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО»**, чтобы начать.
+"""
 
-        // ======== ПРИВЕТ ========
-        if (lower.includes('привет') || lower.includes('салям') || lower.includes('здравствуй')) {
-            const response = 'Ассаляму алейкум! Я рад видеть тебя. Скажи «Помощь», чтобы увидеть все команды.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+# ==================================================
+# 🤖 КОМАНДЫ TELEGRAM БОТА
+# ==================================================
 
-        // ======== ПОКА ========
-        if (lower.includes('пока') || lower.includes('до свидания') || lower.includes('прощай')) {
-            const response = 'До свидания! Я всегда здесь, если понадоблюсь. Амин.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@bot.message_handler(commands=['start'])
+def cmd_start(message):
+    user_id = message.chat.id
+    role = get_user_role(user_id)
+    welcome = WELCOME_TEXT
+    if role == "Хранитель":
+        welcome = f"👑 **Приветствую, Хранитель!**\n\n{WELCOME_TEXT}"
+    bot.reply_to(
+        message,
+        welcome,
+        reply_markup=get_webapp_keyboard(),
+        parse_mode="Markdown"
+    )
 
-        // ======== БАЛАНС ========
-        if (lower.includes('баланс') || lower.includes('сколько денег') || lower.includes('блага')) {
-            const response = `💰 Ваш баланс: ${userData.balance} Благ. Хотите пополнить? Скажите «QR-код».`;
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@bot.message_handler(commands=['id'])
+def cmd_id(message):
+    user_id = message.chat.id
+    if not is_admin(user_id):
+        bot.reply_to(message, "❌ Нет доступа.")
+        return
+    target = message.text.replace('/id', '').strip()
+    if target:
+        try:
+            target = int(target)
+            bot.reply_to(message, f"🆔 ID: `{target}`", parse_mode="Markdown")
+        except:
+            bot.reply_to(message, "❌ Введите корректный ID.")
+    else:
+        bot.reply_to(message, f"🆔 Ваш ID: `{user_id}`", parse_mode="Markdown")
 
-        // ======== QR-КОД ========
-        if (lower.includes('qr') || lower.includes('код') || lower.includes('оплатить') || lower.includes('пополнить')) {
-            const amount = 1000;
-            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%20${amount}%20тг%20заказ`;
-            qrImage.src = qrApiUrl;
-            qrInfo.textContent = `💳 Сумма: ${amount} ₸`;
-            qrContainer.classList.remove('hidden');
-            const response = `💳 QR-код для оплаты ${amount} ₸ сгенерирован. Отсканируйте в приложении Kaspi.`;
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@bot.message_handler(commands=['stats'])
+def cmd_stats(message):
+    user_id = message.chat.id
+    if not is_admin(user_id):
+        bot.reply_to(message, "❌ Нет доступа.")
+        return
+    bot.reply_to(
+        message,
+        "📊 **СТАТИСТИКА**\n\n"
+        "👥 Пользователей: 0\n"
+        "💰 Баланс: 0 Благ\n"
+        "📦 Заказов: 0\n"
+        "🪞 Зеркало работает стабильно.",
+        parse_mode="Markdown"
+    )
 
-        // ======== РАБОТА ========
-        if (lower.includes('работа') || lower.includes('вакансия') || lower.includes('найти работу')) {
-            const response = '💼 Я могу помочь найти работу. Расскажите, какая у вас профессия или что вы ищете.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@bot.message_handler(commands=['clear'])
+def cmd_clear(message):
+    user_id = message.chat.id
+    if not is_admin(user_id):
+        bot.reply_to(message, "❌ Нет доступа.")
+        return
+    # Очищаем логи
+    bot.reply_to(message, "🧹 Логи очищены!")
 
-        // ======== БИЗНЕС ========
-        if (lower.includes('бизнес') || lower.includes('автоматизация') || lower.includes('предприниматель')) {
-            const response = '🏢 Я могу автоматизировать ваш бизнес: рестораны, магазины, склады, отели. Подключение через iiko, Kaspi, 2GIS. Скажите «Подробнее», если интересно.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@bot.message_handler(func=lambda m: True)
+def echo_all(message):
+    bot.reply_to(
+        message,
+        "🪞 Я — Зеркало. Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО»**.",
+        reply_markup=get_webapp_keyboard(),
+        parse_mode="Markdown"
+    )
 
-        // ======== ЛИЗИНГ ========
-        if (lower.includes('лизинг') || lower.includes('аренда') || lower.includes('техника')) {
-            const response = '📈 Лизинг — это покупка активов (машины, техника, оборудование) и сдача их в аренду. Активы остаются у вас. Скажите «Подробнее», если интересно.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+# ==================================================
+# 🌐 WEBAPP МАРШРУТЫ
+# ==================================================
 
-        // ======== ДРОПШИППИНГ ========
-        if (lower.includes('дропшиппинг') || lower.includes('торговля') || lower.includes('товар')) {
-            const response = '📦 Дропшиппинг — это торговля без склада. Я связываю продавца и покупателя, беру процент. Скажите «Подробнее», если интересно.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@app.route('/webapp')
+def webapp():
+    return send_from_directory('webapp', 'index.html')
 
-        // ======== РЕКЛАМА ========
-        if (lower.includes('реклама') || lower.includes('продвижение') || lower.includes('объявление')) {
-            const response = '📢 Реклама внутри системы — я показываю ваши товары и услуги целевой аудитории. Скажите «Подробнее», если хотите разместить рекламу.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@app.route('/webapp/<path:filename>')
+def webapp_files(filename):
+    return send_from_directory('webapp', filename)
 
-        // ======== НАЙТИ МАСТЕРА ========
-        if (lower.includes('мастер') || lower.includes('специалист') || lower.includes('ремонт')) {
-            const response = '🔧 Я могу найти мастера: сварщика, электрика, строителя, сантехника. Напишите, что вам нужно.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@app.route('/ping')
+def ping():
+    return "🪞 ЗЕРКАЛО ЖИВО! ✅", 200
 
-        // ======== АНКЕТА ========
-        if (lower.includes('анкета') || lower.includes('регистрация') || lower.includes('заполнить')) {
-            const response = '📋 Давайте заполним анкету. Как вас зовут?';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+@app.route('/')
+def home():
+    return """
+    <h1>🪞 ЗЕРКАЛО</h1>
+    <p>✅ Работает 24/7</p>
+    <p><a href="/webapp">📱 Открыть приложение</a></p>
+    """
 
-        // ======== СПАСИБО ========
-        if (lower.includes('спасибо') || lower.includes('благодарю')) {
-            const response = 'Пожалуйста! Обращайтесь в любое время. Я всегда рядом.';
-            addMessage(response, 'assistant');
-            speakText(response);
-            return;
-        }
+# ==================================================
+# 🚀 ЗАПУСК
+# ==================================================
 
-        // ======== ОЧИСТИТЬ ========
-        if (lower.includes('очистить') || lower.includes('стереть') || lower.includes('удалить чат')) {
-            chatContainer.innerHTML = '';
-            addMessage('🪞 Чат очищен. Скажите «Помощь», чтобы увидеть команды.', 'assistant');
-            return;
-        }
+def run_bot():
+    print("🤖 ЗАПУСКАЮ БОТА...")
+    bot.infinity_polling(timeout=10)
 
-        // ======== НЕИЗВЕСТНАЯ КОМАНДА ========
-        if (lower) {
-            const response = 'Я не совсем понял. Скажите «Помощь», чтобы увидеть все доступные команды.';
-            addMessage(response, 'assistant');
-            speakText(response);
-        }
-    }
-
-    // ==========================================
-    // КНОПКИ
-    // ==========================================
-
-    micBtn.addEventListener('click', function() {
-        if (isListening) {
-            stopRecording();
-        } else {
-            startRecording();
-        }
-    });
-
-    stopBtn.addEventListener('click', stopRecording);
-
-    helpBtn.addEventListener('click', function() {
-        processCommand('помощь');
-    });
-
-    clearBtn.addEventListener('click', function() {
-        chatContainer.innerHTML = '';
-        addMessage('🪞 Чат очищен. Скажите «Помощь», чтобы увидеть команды.', 'assistant');
-    });
-
-    sendBtn.addEventListener('click', function() {
-        const text = textInput.value.trim();
-        if (text) {
-            addMessage(text, 'user');
-            processCommand(text);
-            textInput.value = '';
-        }
-    });
-
-    textInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') sendBtn.click();
-    });
-
-    // ==========================================
-    // ИНИЦИАЛИЗАЦИЯ
-    // ==========================================
-
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    const welcomeTime = document.getElementById('welcomeTime');
-    if (welcomeTime) welcomeTime.textContent = timeStr;
-
-    initRecognition();
-
-    setTimeout(() => {
-        addMessage('🪞 Я готов. Скажите «Помощь», чтобы увидеть все команды.', 'assistant');
-    }, 1000);
-
-    console.log('🪞 Зеркало загружено');
-    console.log('📋 Команды: Помощь, Привет, Пока, Баланс, QR-код, Работа, Бизнес, Лизинг, Дропшиппинг, Реклама, Найти мастера, Анкета, Очистить, Спасибо');
-</script>
-</body>
-</html>
+if __name__ == "__main__":
+    print("=" * 70)
+    print("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
+    print("=" * 70)
+    print(f"👑 Хранитель ID: {FOUNDER_ID}")
+    print(f"👑 Наследник ID: {TOMIRIS_ID}")
+    print(f"🌐 ХОСТ: {RENDER_HOSTNAME}")
+    print("=" * 70)
+    threading.Thread(target=run_bot, daemon=True).start()
+    app.run(host='0.0.0.0', port=PORT)
