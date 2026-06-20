@@ -320,7 +320,7 @@
         let isWakeWordActive = false;
         let dialogHistory = [];
         let isListening = false;
-        let restartTimeout = null;
+        let userId = 'anonymous_' + Date.now();
 
         // ==========================================
         // ВРЕМЯ
@@ -431,7 +431,6 @@
                         setStatus('Слушаю...', true);
                     }
                     if (callback) callback();
-                    // После ответа снова слушаем
                     if (recognition && isListening) {
                         try { recognition.start(); } catch (e) {}
                     }
@@ -495,7 +494,6 @@
                     return;
                 }
                 if (event.error === 'no-speech') {
-                    // Перезапускаем
                     if (isListening) {
                         try { recognition.start(); } catch (e) {}
                     }
@@ -534,7 +532,6 @@
 
                 // КЛЮЧЕВОЕ СЛОВО "ЗЕРКАЛО"
                 if (fullText.toLowerCase().includes('зеркало') && !isSpeaking && !isProcessing) {
-                    // Просыпаемся
                     isWakeWordActive = true;
                     try { recognition.stop(); } catch (e) {}
 
@@ -586,7 +583,7 @@
         }
 
         // ==========================================
-        // ОТПРАВКА В AI (Groq API)
+        // ОТПРАВКА В AI
         // ==========================================
 
         async function sendToAI(userMessage) {
@@ -616,7 +613,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: userMessage,
-                        history: dialogHistory
+                        history: dialogHistory,
+                        user_id: userId
                     })
                 });
 
@@ -653,7 +651,6 @@
                 console.log('✅ Распознавание готово');
                 console.log('🔊 Скажи "Зеркало" — я проснусь');
                 setStatus('Скажите «Зеркало»', true);
-                // Автоматически запускаем микрофон
                 startRecognition();
             } else {
                 console.log('❌ Распознавание не поддерживается');
