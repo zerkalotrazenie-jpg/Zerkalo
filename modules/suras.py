@@ -17,3 +17,12 @@ def load_suras():
 
 SURAS = load_suras()
 print(f"✅ Загружено {len(SURAS)} сур")
+
+def get_sura_by_number(num):
+    for s in SURAS:
+        if s["number"] == str(num):
+            return s
+    return None
+
+def get_all_suras():
+    return SURAS
