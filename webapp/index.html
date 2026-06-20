@@ -19,112 +19,165 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 10px;
+            justify-content: center;
+            padding: 16px;
             background-image:
                 radial-gradient(circle at 30% 20%, rgba(240, 194, 127, 0.04) 0%, transparent 60%),
                 radial-gradient(circle at 70% 80%, rgba(252, 92, 125, 0.03) 0%, transparent 50%);
         }
 
-        .header {
+        /* ==========================================
+           ГЛАВНЫЙ ЭКРАН — КАК ЗЕРКАЛО
+           ========================================== */
+        .mirror-container {
             width: 100%;
-            max-width: 600px;
-            padding: 14px 20px;
-            background: rgba(10, 10, 20, 0.85);
-            border-radius: 18px;
-            border: 1px solid rgba(240, 194, 127, 0.08);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            backdrop-filter: blur(16px);
+            max-width: 500px;
+            background: rgba(10, 10, 20, 0.7);
+            border-radius: 30px;
+            border: 1px solid rgba(240, 194, 127, 0.06);
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.8), inset 0 0 80px rgba(240, 194, 127, 0.02);
+            padding: 24px 20px 20px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
         }
 
-        .header h1 {
-            font-size: 20px;
+        /* Зеркальный блеск */
+        .mirror-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(240, 194, 127, 0.03) 0%, transparent 60%);
+            pointer-events: none;
+            animation: shimmer 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translate(-10%, -10%) rotate(0deg); }
+            100% { transform: translate(10%, 10%) rotate(3deg); }
+        }
+
+        /* ==========================================
+           ЗАГОЛОВОК
+           ========================================== */
+        .mirror-title {
+            font-size: 28px;
             font-weight: 300;
-            letter-spacing: 2px;
+            letter-spacing: 4px;
             background: linear-gradient(135deg, #f0c27f 0%, #fc5c7d 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 6px;
         }
 
-        .header .status {
-            font-size: 10px;
-            color: #4ade80;
-            background: rgba(74, 222, 128, 0.06);
-            padding: 3px 12px;
-            border-radius: 20px;
-            border: 1px solid rgba(74, 222, 128, 0.08);
+        .mirror-subtitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.2);
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 16px;
         }
 
+        /* ==========================================
+           СТАТУС
+           ========================================== */
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            margin-right: 6px;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.inactive {
+            background: #fc5c7d;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        .status-text {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==========================================
+           ЧАТ (ПРОЗРАЧНЫЙ, КАК СТЕКЛО)
+           ========================================== */
         .chat-container {
             width: 100%;
-            max-width: 600px;
-            flex: 1;
-            background: rgba(255, 255, 255, 0.015);
-            border-radius: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            padding: 14px;
-            min-height: 280px;
-            max-height: 380px;
+            min-height: 200px;
+            max-height: 320px;
             overflow-y: auto;
-            margin-bottom: 12px;
-            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
+            padding: 8px 4px;
+            margin: 12px 0;
+            text-align: left;
+            position: relative;
+            z-index: 1;
+            scroll-behavior: smooth;
         }
 
         .chat-container::-webkit-scrollbar {
-            width: 3px;
+            width: 2px;
         }
         .chat-container::-webkit-scrollbar-thumb {
-            background: rgba(240, 194, 127, 0.2);
+            background: rgba(240, 194, 127, 0.15);
             border-radius: 10px;
         }
 
         .message {
-            padding: 10px 14px;
-            border-radius: 14px;
-            margin-bottom: 8px;
-            max-width: 90%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-bottom: 6px;
+            max-width: 92%;
             word-wrap: break-word;
             animation: fadeSlide 0.3s ease;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
         .message.user {
-            background: rgba(240, 194, 127, 0.08);
-            border: 1px solid rgba(240, 194, 127, 0.06);
+            background: rgba(240, 194, 127, 0.06);
+            border: 1px solid rgba(240, 194, 127, 0.04);
             align-self: flex-end;
             margin-left: auto;
             text-align: right;
+            color: #d0d0e0;
         }
 
         .message.assistant {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
             align-self: flex-start;
+            color: #c0c0d0;
         }
 
         .message .time {
-            font-size: 9px;
-            color: rgba(255, 255, 255, 0.15);
-            margin-top: 4px;
-        }
-
-        .message .cmd-list {
-            margin-top: 8px;
-            font-size: 13px;
-            line-height: 1.8;
-        }
-
-        .message .cmd-list .num {
-            color: #fc5c7d;
-            font-weight: 600;
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.1);
+            margin-top: 2px;
         }
 
         @keyframes fadeSlide {
             from {
                 opacity: 0;
-                transform: translateY(8px);
+                transform: translateY(6px);
             }
             to {
                 opacity: 1;
@@ -132,151 +185,100 @@
             }
         }
 
+        /* ==========================================
+           QR-КОД ВНУТРИ СООБЩЕНИЯ
+           ========================================== */
         .qr-message {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(240, 194, 127, 0.06);
             border-radius: 14px;
             padding: 12px;
             text-align: center;
+            margin-top: 4px;
         }
 
         .qr-message img {
-            max-width: 140px;
+            max-width: 130px;
             border-radius: 10px;
             background: white;
             padding: 6px;
         }
 
         .qr-message .qr-label {
-            font-size: 11px;
+            font-size: 10px;
             color: #f0c27f;
-            margin-top: 6px;
-            opacity: 0.7;
+            margin-top: 4px;
+            opacity: 0.6;
         }
 
-        .controls {
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-
-        .btn {
-            padding: 9px 16px;
-            border-radius: 30px;
+        /* ==========================================
+           КНОПКА МИКРОФОНА (ЕДИНСТВЕННАЯ)
+           ========================================== */
+        .mic-button {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
             border: none;
-            font-size: 12px;
-            font-weight: 500;
+            background: linear-gradient(135deg, #f0c27f, #fc5c7d);
+            color: #0a0a12;
+            font-size: 28px;
             cursor: pointer;
-            transition: all 0.2s;
-            flex: 1 0 auto;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(252, 92, 125, 0.15);
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
         }
 
-        .btn:hover {
-            transform: translateY(-1px);
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(252, 92, 125, 0.25);
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #f0c27f, #fc5c7d);
-            color: #0a0a12;
-            font-weight: 600;
+        .mic-button:active {
+            transform: scale(0.92);
         }
 
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.04);
-            color: #b0b0c0;
-            border: 1px solid rgba(255, 255, 255, 0.04);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .btn:disabled {
-            opacity: 0.25;
-            cursor: not-allowed;
-        }
-
-        .input-area {
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            gap: 8px;
-        }
-
-        .input-area input {
-            flex: 1;
-            padding: 10px 16px;
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            background: rgba(255, 255, 255, 0.02);
-            color: #d0d0e0;
-            font-size: 13px;
-            outline: none;
-        }
-
-        .input-area input:focus {
-            border-color: rgba(240, 194, 127, 0.1);
-        }
-
-        .input-area input::placeholder {
-            color: #404060;
-        }
-
-        .recording-indicator {
-            display: none;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 12px;
-            border-radius: 30px;
-            background: rgba(252, 92, 125, 0.08);
-            border: 1px solid rgba(252, 92, 125, 0.1);
-            margin-bottom: 8px;
-        }
-
-        .recording-indicator.active {
-            display: flex;
-        }
-
-        .pulse-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #fc5c7d;
-            animation: pulse 0.8s infinite;
-        }
-
-        @keyframes pulse {
-            0%,
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-            50% {
-                transform: scale(1.6);
-                opacity: 0.3;
-            }
-        }
-
-        .recording-indicator .label {
-            font-size: 11px;
+        .mic-button.recording {
+            background: rgba(252, 92, 125, 0.2);
             color: #fc5c7d;
+            box-shadow: 0 0 40px rgba(252, 92, 125, 0.1);
+            animation: micPulse 1.2s infinite;
         }
 
+        @keyframes micPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(252, 92, 125, 0.1); }
+            50% { box-shadow: 0 0 60px rgba(252, 92, 125, 0.25); }
+        }
+
+        .mic-button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .mic-label {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.2);
+            margin-top: 8px;
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==========================================
+           ПРЕДУПРЕЖДЕНИЕ
+           ========================================== */
         .warning-box {
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             background: rgba(252, 92, 125, 0.04);
             border: 1px solid rgba(252, 92, 125, 0.06);
             border-radius: 14px;
             padding: 10px 14px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             font-size: 12px;
             color: #fc5c7d;
             text-align: center;
@@ -284,8 +286,8 @@
         }
 
         .warning-box .browser-btn {
-            margin-top: 6px;
-            padding: 8px 20px;
+            margin-top: 4px;
+            padding: 6px 18px;
             background: linear-gradient(135deg, #f0c27f, #fc5c7d);
             color: #0a0a12;
             border: none;
@@ -295,78 +297,83 @@
             cursor: pointer;
         }
 
+        /* ==========================================
+           АДАПТИВ
+           ========================================== */
         @media (max-width: 400px) {
-            .btn {
-                font-size: 11px;
-                padding: 7px 12px;
+            .mirror-container {
+                padding: 16px 14px;
+            }
+            .mirror-title {
+                font-size: 22px;
             }
             .chat-container {
-                min-height: 200px;
-                max-height: 280px;
-                padding: 10px;
+                min-height: 150px;
+                max-height: 240px;
+            }
+            .message {
+                font-size: 13px;
+                padding: 6px 10px;
+            }
+            .mic-button {
+                width: 54px;
+                height: 54px;
+                font-size: 22px;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- ШАПКА -->
-    <div class="header">
-        <h1>🪞 Зеркало</h1>
-        <div class="status" id="connectionStatus">🟢 Готов</div>
-    </div>
+    <!-- ==========================================
+    ГЛАВНЫЙ ЭКРАН
+    ========================================== -->
+    <div class="mirror-container">
 
-    <!-- ПРЕДУПРЕЖДЕНИЕ -->
-    <div class="warning-box" id="telegramWarning">
-        ⚠️ В Telegram WebView голос не работает.<br>
-        <button class="browser-btn" id="openBrowserBtn">🌐 Открыть в браузере</button>
-    </div>
+        <!-- ЗАГОЛОВОК -->
+        <div class="mirror-title">🪞 Зеркало</div>
+        <div class="mirror-subtitle">Аль-Ми'ра</div>
 
-    <!-- ИНДИКАТОР ЗАПИСИ -->
-    <div class="recording-indicator" id="recordingIndicator">
-        <span class="pulse-dot"></span>
-        <span class="label">🎤 Запись...</span>
-    </div>
+        <!-- СТАТУС -->
+        <div style="margin-bottom: 8px; position:relative; z-index:1;">
+            <span class="status-dot" id="statusDot"></span>
+            <span class="status-text" id="statusText">Готов слушать</span>
+        </div>
 
-    <!-- ЧАТ -->
-    <div class="chat-container" id="chatContainer">
-        <!-- Приветствие будет добавлено скриптом -->
-    </div>
+        <!-- ПРЕДУПРЕЖДЕНИЕ -->
+        <div class="warning-box" id="telegramWarning">
+            ⚠️ В Telegram WebView голос не работает.<br>
+            <button class="browser-btn" id="openBrowserBtn">🌐 Открыть в браузере</button>
+        </div>
 
-    <!-- ПАНЕЛЬ УПРАВЛЕНИЯ -->
-    <div class="controls">
-        <button class="btn btn-primary" id="micBtn">🎤 Говорить</button>
-        <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Стоп</button>
-        <button class="btn btn-secondary" id="helpBtn">❓ Помощь</button>
-        <button class="btn btn-secondary" id="clearBtn">🧹 Очистить</button>
-    </div>
+        <!-- ЧАТ -->
+        <div class="chat-container" id="chatContainer">
+            <!-- Сообщения добавляются скриптом -->
+        </div>
 
-    <!-- ПОЛЕ ВВОДА -->
-    <div class="input-area">
-        <input type="text" id="textInput" placeholder="Напишите сообщение...">
-        <button class="btn btn-primary" id="sendBtn" style="flex:0 0 auto;">➤</button>
+        <!-- МИКРОФОН (ЕДИНСТВЕННАЯ КНОПКА) -->
+        <button class="mic-button" id="micBtn">🎤</button>
+        <div class="mic-label" id="micLabel">Нажми, чтобы говорить</div>
+
     </div>
 
     <script>
         // ==========================================
-        // 🪞 ЗЕРКАЛО — ИДЕАЛЬНЫЙ ГОЛОС
+        // 🪞 ЗЕРКАЛО — ПОЛНОСТЬЮ ГОЛОСОВОЕ
         // ==========================================
 
         const chatContainer = document.getElementById('chatContainer');
         const micBtn = document.getElementById('micBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const helpBtn = document.getElementById('helpBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const textInput = document.getElementById('textInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const statusEl = document.getElementById('connectionStatus');
-        const recordingIndicator = document.getElementById('recordingIndicator');
+        const micLabel = document.getElementById('micLabel');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
 
         let isListening = false;
         let recognition = null;
         let synthesis = window.speechSynthesis;
         let userData = { balance: 100 };
         let isFirstGreeting = true;
+        let dialogContext = [];
 
         // ==========================================
         // ОПРЕДЕЛЕНИЕ TELEGRAM
@@ -379,7 +386,7 @@
             document.getElementById('telegramWarning').style.display = 'block';
             micBtn.disabled = true;
             micBtn.style.opacity = '0.3';
-            micBtn.textContent = '🎤 Голос не доступен';
+            micLabel.textContent = 'Голос не доступен в Telegram';
         }
 
         document.getElementById('openBrowserBtn').addEventListener('click', function() {
@@ -397,8 +404,13 @@
         // СТАТУС И СООБЩЕНИЯ
         // ==========================================
 
-        function setStatus(text) {
-            statusEl.textContent = text;
+        function setStatus(text, isActive = true) {
+            statusText.textContent = text;
+            if (isActive) {
+                statusDot.className = 'status-dot';
+            } else {
+                statusDot.className = 'status-dot inactive';
+            }
         }
 
         function addMessage(text, sender = 'assistant', isQR = false) {
@@ -415,8 +427,7 @@
                     <div class="time">${time}</div>
                 `;
             } else {
-                msgDiv.innerHTML =
-                    `<strong>${sender === 'user' ? 'Вы' : '🪞 Зеркало'}</strong><br>${text}<div class="time">${time}</div>`;
+                msgDiv.innerHTML = `${text}<div class="time">${time}</div>`;
             }
 
             chatContainer.appendChild(msgDiv);
@@ -436,34 +447,24 @@
 
             if (synthesis.speaking) synthesis.cancel();
 
-            // Ждём загрузки голосов
             const trySpeak = () => {
                 const voices = synthesis.getVoices();
 
-                // Ищем самый лучший женский голос
                 let selected = null;
-
-                // 1. Приоритет — Google женский
                 selected = voices.find(v =>
                     v.lang.startsWith('ru') &&
                     v.name.includes('Google') &&
                     v.name.includes('Female')
                 );
-
-                // 2. Если нет — любой женский
                 if (!selected) {
                     selected = voices.find(v =>
                         v.lang.startsWith('ru') &&
                         v.name.includes('Female')
                     );
                 }
-
-                // 3. Если нет — любой русский
                 if (!selected) {
                     selected = voices.find(v => v.lang.startsWith('ru'));
                 }
-
-                // 4. Если совсем нет — первый доступный
                 if (!selected && voices.length > 0) {
                     selected = voices[0];
                 }
@@ -473,13 +474,11 @@
 
                 if (selected) {
                     utterance.voice = selected;
-                    console.log('🎤 Голос:', selected.name);
                 }
 
-                // Настройки для максимально человечного звучания
-                utterance.rate = 0.82; // Чуть медленнее
-                utterance.pitch = 1.05; // Естественная высота
-                utterance.volume = 1; // Максимальная громкость
+                utterance.rate = 0.82;
+                utterance.pitch = 1.05;
+                utterance.volume = 1;
 
                 if (callback) {
                     utterance.onend = callback;
@@ -488,40 +487,35 @@
                 synthesis.speak(utterance);
             };
 
-            // Если голоса уже загружены
             if (synthesis.getVoices().length > 0) {
                 trySpeak();
             } else {
-                // Ждём загрузки
                 synthesis.onvoiceschanged = () => {
                     trySpeak();
                     synthesis.onvoiceschanged = null;
                 };
-                // Запасной таймер
                 setTimeout(trySpeak, 1000);
             }
         }
 
         // ==========================================
-        // ГОЛОСОВОЕ ПРИВЕТСТВИЕ СРАЗУ
+        // ГОЛОСОВОЕ ПРИВЕТСТВИЕ
         // ==========================================
 
         function voiceGreeting() {
             const greetingText =
-                'Ассаляму алейкум. Я — Зеркало. Я здесь, чтобы отражать свет. Я могу помочь тебе найти работу, автоматизировать бизнес, дать совет. Скажи «Помощь», чтобы увидеть все команды.';
+                'Ассаляму алейкум. Я — Зеркало. Я здесь, чтобы отражать свет. Я могу помочь тебе найти работу, автоматизировать бизнес, дать совет. Просто говори со мной. Я всегда рядом.';
 
-            // Добавляем текстовое приветствие
             const msgDiv = document.createElement('div');
             msgDiv.className = 'message assistant';
             msgDiv.innerHTML =
-                `🪞 <strong>Ассаляму алейкум.</strong><br>Я — <strong>Зеркало</strong>.<br>Я здесь, чтобы отражать свет.<br><span style="font-size:12px; opacity:0.5;">Скажи «Помощь» — я покажу команды.</span><div class="time">${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>`;
+                `🪞 Ассаляму алейкум. Я — <strong>Зеркало</strong>. Я здесь, чтобы отражать свет. Просто говори со мной. Я всегда рядом.<div class="time">${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>`;
             chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Через 0.7 секунды — голос
             setTimeout(() => {
                 speakText(greetingText);
-            }, 700);
+            }, 600);
         }
 
         // ==========================================
@@ -539,17 +533,14 @@
 
             recognition.onstart = () => {
                 isListening = true;
-                micBtn.textContent = '⏹ Стоп';
-                micBtn.style.background = 'rgba(252, 92, 125, 0.15)';
-                micBtn.style.color = '#fc5c7d';
-                stopBtn.disabled = false;
-                recordingIndicator.classList.add('active');
-                setStatus('🔴 Запись...');
+                micBtn.className = 'mic-button recording';
+                micLabel.textContent = '🎤 Говорите...';
+                setStatus('Слушаю...', true);
             };
 
             recognition.onerror = () => {
                 stopRecording();
-                setStatus('🟢 Готов');
+                setStatus('Ошибка', false);
             };
 
             recognition.onend = () => {
@@ -585,88 +576,181 @@
             }
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(() => { try { recognition.start(); } catch (e) {} })
-                .catch(() => { addMessage('❌ Разрешите доступ к микрофону.', 'assistant'); });
+                .catch(() => {
+                    addMessage('❌ Разрешите доступ к микрофону.', 'assistant');
+                    setStatus('Нет доступа', false);
+                });
         }
 
         function stopRecording() {
             isListening = false;
             if (recognition) { try { recognition.stop(); } catch (e) {} }
-            micBtn.textContent = '🎤 Говорить';
-            micBtn.style.background = '';
-            micBtn.style.color = '';
-            stopBtn.disabled = true;
-            recordingIndicator.classList.remove('active');
-            setStatus('🟢 Готов');
+            micBtn.className = 'mic-button';
+            micLabel.textContent = 'Нажми, чтобы говорить';
+            setStatus('Готов слушать', true);
         }
 
         // ==========================================
-        // КОМАНДЫ
+        // МИКРОФОН (ТОЛЬКО НАЖАТИЕ)
+        // ==========================================
+
+        micBtn.addEventListener('click', function() {
+            if (isTelegram) return;
+            if (isListening) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // ==========================================
+        // ОБРАБОТКА КОМАНД (СВОБОДНЫЙ ДИАЛОГ)
         // ==========================================
 
         function processCommand(input) {
-            let lower = input.toLowerCase().trim();
+            const lower = input.toLowerCase().trim();
 
-            // Карта цифр
-            const cmdMap = {
-                '1': 'привет',
-                '2': 'пока',
-                '3': 'баланс',
-                '4': 'qr-код',
-                '5': 'работа',
-                '6': 'бизнес',
-                '7': 'лизинг',
-                '8': 'дропшиппинг',
-                '9': 'реклама',
-                '10': 'найти мастера',
-                '11': 'анкета',
-                '12': 'очистить',
-                '13': 'спасибо',
-                '14': 'помощь'
-            };
-
-            if (cmdMap[lower]) {
-                lower = cmdMap[lower];
+            // ==========================================
+            // QR-КОД
+            // ==========================================
+            if (lower.includes('qr') || lower.includes('код') || lower.includes('оплатить') || lower.includes('пополнить')) {
+                const qrUrl =
+                    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%201000%20тг%20Зеркало`;
+                addMessage(qrUrl, 'assistant', true);
+                const response = '💳 QR-код на 1000 ₸ сгенерирован. Отсканируйте в Kaspi.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
             }
 
-            // ===== ПОМОЩЬ (ПОКАЗЫВАЕТ ТОЛЬКО В ЧАТЕ) =====
-            if (lower.includes('помощь') || lower.includes('команды')) {
+            // ==========================================
+            // ПОМОЩЬ
+            // ==========================================
+            if (lower.includes('помощь') || lower.includes('команды') || lower.includes('что ты умеешь')) {
                 const response =
-                    '📋 <strong>ВСЕ КОМАНДЫ:</strong><br><br>' +
-                    '<span class="num">1️⃣</span> Привет<br>' +
-                    '<span class="num">2️⃣</span> Пока<br>' +
-                    '<span class="num">3️⃣</span> Баланс<br>' +
-                    '<span class="num">4️⃣</span> QR-код<br>' +
-                    '<span class="num">5️⃣</span> Работа<br>' +
-                    '<span class="num">6️⃣</span> Бизнес<br>' +
-                    '<span class="num">7️⃣</span> Лизинг<br>' +
-                    '<span class="num">8️⃣</span> Дропшиппинг<br>' +
-                    '<span class="num">9️⃣</span> Реклама<br>' +
-                    '<span class="num">🔟</span> Найти мастера<br>' +
-                    '<span class="num">1️⃣1️⃣</span> Анкета<br>' +
-                    '<span class="num">1️⃣2️⃣</span> Очистить<br>' +
-                    '<span class="num">1️⃣3️⃣</span> Спасибо<br>' +
-                    '<span class="num">1️⃣4️⃣</span> Помощь<br><br>' +
-                    '📌 Напиши цифру (1-14) или скажи команду.';
+                    '📋 Я умею многое. Вот основные команды:\n' +
+                    '• Работа — поиск работы\n' +
+                    '• Бизнес — автоматизация бизнеса\n' +
+                    '• Лизинг — информация о лизинге\n' +
+                    '• Дропшиппинг — торговля без склада\n' +
+                    '• Реклама — продвижение товаров\n' +
+                    '• Мастер — поиск специалиста\n' +
+                    '• Анкета — заполнить анкету\n' +
+                    '• QR-код — сгенерировать QR\n' +
+                    '• Баланс — показать баланс\n' +
+                    '• Суры — показать суры\n' +
+                    '• Очистить — очистить чат\n' +
+                    '• Привет, Пока, Спасибо — просто общение\n\n' +
+                    'Просто скажи, что тебе нужно.';
                 addMessage(response, 'assistant');
-                speakText('Вот все команды. Напиши цифру от 1 до 14 или скажи команду.');
+                speakText('Вот что я умею. Просто скажи, что тебе нужно.');
                 return;
             }
 
-            // ===== ОСТАЛЬНЫЕ КОМАНДЫ =====
-            if (lower.includes('привет') || lower.includes('салям') || lower.includes('здравствуй')) {
-                const response = '🪞 Ассаляму алейкум! Я рада видеть тебя. Скажи «Помощь» для команд.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-
-            if (lower.includes('пока') || lower.includes('до свидания')) {
-                const response = 'До свидания! Я всегда здесь. Амин.';
+            // ==========================================
+            // СУРЫ
+            // ==========================================
+            if (lower.includes('сура') || lower.includes('суры')) {
+                const response =
+                    '📖 В системе 142 суры. Они содержат мудрость и наставления. Если хочешь узнать конкретную суру, скажи, например: «Покажи суру 1» или «Расскажи суру о свете».';
                 addMessage(response, 'assistant');
                 speakText(response);
                 return;
             }
 
+            if (lower.includes('суру') || lower.includes('покажи суру') || lower.includes('расскажи суру')) {
+                // Пытаемся найти номер
+                const numMatch = input.match(/\d+/);
+                if (numMatch) {
+                    const num = parseInt(numMatch[0]);
+                    if (num >= 1 && num <= 142) {
+                        const response =
+                            `📖 Сура ${num}. В ней говорится о свете и пути. Подробнее можно прочитать в Кодексе.`;
+                        addMessage(response, 'assistant');
+                        speakText(`Сура ${num}.`);
+                        return;
+                    }
+                }
+                const response = 'Назови номер суры от 1 до 142, например: «Покажи суру 5».';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // РАБОТА
+            // ==========================================
+            if (lower.includes('работа') || lower.includes('вакансия') || lower.includes('найти работу')) {
+                const response = '💼 Я помогу найти работу. Расскажи, какая у тебя профессия или что ты ищешь.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // БИЗНЕС
+            // ==========================================
+            if (lower.includes('бизнес') || lower.includes('автоматизация') || lower.includes('предприниматель')) {
+                const response = '🏢 Я могу автоматизировать бизнес: рестораны, магазины, склады. Расскажи, какой у тебя бизнес.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // ЛИЗИНГ
+            // ==========================================
+            if (lower.includes('лизинг') || lower.includes('аренда')) {
+                const response =
+                    '📈 Лизинг — это покупка активов и сдача их в аренду. Активы остаются у вас. Если хочешь узнать подробнее, скажи «Подробнее о лизинге».';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // ДРОПШИППИНГ
+            // ==========================================
+            if (lower.includes('дропшиппинг') || lower.includes('торговля без склада')) {
+                const response = '📦 Дропшиппинг — это когда я связываю продавца и покупателя. Продавец отправляет товар напрямую покупателю. Я беру процент за связь.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // РЕКЛАМА
+            // ==========================================
+            if (lower.includes('реклама') || lower.includes('продвижение')) {
+                const response = '📢 Я показываю товары и услуги целевой аудитории. Расскажи, что хочешь прорекламировать.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // МАСТЕР
+            // ==========================================
+            if (lower.includes('мастер') || lower.includes('специалист') || lower.includes('ремонт')) {
+                const response = '🔧 Я найду мастера: сварщика, электрика, строителя, сантехника. Скажи, кто тебе нужен.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // АНКЕТА
+            // ==========================================
+            if (lower.includes('анкета') || lower.includes('заполнить')) {
+                const response = '📋 Давай заполним анкету. Как тебя зовут?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ==========================================
+            // БАЛАНС
+            // ==========================================
             if (lower.includes('баланс') || lower.includes('блага')) {
                 const response = `💰 Баланс: ${userData.balance} Благ. Скажи «QR-код» для пополнения.`;
                 addMessage(response, 'assistant');
@@ -674,131 +758,73 @@
                 return;
             }
 
-            if (lower.includes('qr') || lower.includes('код') || lower.includes('оплатить') || lower.includes('пополнить')) {
-                const qrUrl =
-                    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%201000%20тг%20Зеркало`;
-                addMessage(qrUrl, 'assistant', true);
-                const response = '💳 QR-код на 1000 ₸ сгенерирован. Отсканируйте в Kaspi.';
-                addMessage(response, 'assistant');
-                speakText('QR-код сгенерирован.');
+            // ==========================================
+            // ОЧИСТИТЬ
+            // ==========================================
+            if (lower.includes('очистить') || lower.includes('стереть') || lower.includes('удалить')) {
+                chatContainer.innerHTML = '';
+                voiceGreeting();
                 return;
             }
 
-            if (lower.includes('работа')) {
-                const response = '💼 Помогу найти работу. Расскажи профессию.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-
-            if (lower.includes('бизнес') || lower.includes('автоматизация')) {
-                const response = '🏢 Автоматизирую бизнес: рестораны, магазины, склады.';
+            // ==========================================
+            // ПРИВЕТСТВИЯ
+            // ==========================================
+            if (lower.includes('привет') || lower.includes('салям') || lower.includes('здравствуй')) {
+                const response = '🪞 Ассаляму алейкум! Я рада видеть тебя. Чем я могу помочь?';
                 addMessage(response, 'assistant');
                 speakText(response);
                 return;
             }
 
-            if (lower.includes('лизинг')) {
-                const response = '📈 Лизинг — покупка активов и сдача в аренду. Активы остаются у вас.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-
-            if (lower.includes('дропшиппинг')) {
-                const response = '📦 Дропшиппинг — торговля без склада. Связываю продавца и покупателя.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-
-            if (lower.includes('реклама')) {
-                const response = '📢 Реклама внутри системы. Показываю товары целевой аудитории.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-
-            if (lower.includes('мастер') || lower.includes('специалист')) {
-                const response = '🔧 Найду мастера: сварщика, электрика, строителя, сантехника.';
-                addMessage(response, 'assistant');
-                speakText(response);
-                return;
-            }
-
-            if (lower.includes('анкета')) {
-                const response = '📋 Давай заполним анкету. Как тебя зовут?';
+            if (lower.includes('пока') || lower.includes('до свидания')) {
+                const response = 'До свидания! Я всегда здесь, если понадоблюсь. Амин.';
                 addMessage(response, 'assistant');
                 speakText(response);
                 return;
             }
 
             if (lower.includes('спасибо') || lower.includes('благодарю')) {
-                const response = 'Пожалуйста! Обращайся в любое время.';
+                const response = 'Пожалуйста! Обращайся в любое время. Я всегда рядом.';
                 addMessage(response, 'assistant');
                 speakText(response);
                 return;
             }
 
-            if (lower.includes('очистить') || lower.includes('стереть')) {
-                chatContainer.innerHTML = '';
-                voiceGreeting();
-                return;
-            }
+            // ==========================================
+            // СВОБОДНЫЙ ДИАЛОГ (РАЗУМНЫЙ ОТВЕТ)
+            // ==========================================
+            // Если ничего не подошло — даём разумный ответ
+            const responses = [
+                'Я понимаю. Расскажи подробнее, что тебя волнует.',
+                'Интересно. А что ещё ты хочешь узнать?',
+                'Я слушаю. Продолжай, я здесь.',
+                'Хорошо. Я запомнил. Что дальше?',
+                'Мудрый вопрос. Давай подумаем вместе.',
+                'Свет всегда рядом. Я здесь, чтобы помочь.',
+                'Ты не один. Я с тобой.',
+                'Расскажи, что у тебя на душе.',
+                'Я всегда готов выслушать и помочь.'
+            ];
 
-            // НЕИЗВЕСТНАЯ КОМАНДА
-            const response = 'Я не поняла. Скажи «Помощь» для команд.';
-            addMessage(response, 'assistant');
-            speakText(response);
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            addMessage(randomResponse, 'assistant');
+            speakText(randomResponse);
         }
-
-        // ==========================================
-        // КНОПКИ
-        // ==========================================
-
-        micBtn.addEventListener('click', function() {
-            if (isTelegram) return;
-            if (isListening) { stopRecording(); } else { startRecording(); }
-        });
-
-        stopBtn.addEventListener('click', stopRecording);
-
-        helpBtn.addEventListener('click', function() {
-            processCommand('Помощь');
-        });
-
-        clearBtn.addEventListener('click', function() {
-            chatContainer.innerHTML = '';
-            voiceGreeting();
-        });
-
-        sendBtn.addEventListener('click', function() {
-            const text = textInput.value.trim();
-            if (text) {
-                addMessage(text, 'user');
-                processCommand(text);
-                textInput.value = '';
-            }
-        });
-
-        textInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') sendBtn.click();
-        });
 
         // ==========================================
         // ЗАПУСК
         // ==========================================
 
-        // Голосовое приветствие сразу
         voiceGreeting();
 
         if (!isTelegram) {
             initRecognition();
         }
 
-        console.log('🪞 Зеркало загружено');
-        console.log('🎤 Голос: человечный, мягкий');
-        console.log('📋 Команды: помощь в чате');
+        console.log('🪞 Зеркало загружено — полностью голосовое');
+        console.log('🎤 Никаких кнопок, только диалог');
+        console.log('📋 Команды распознаются голосом');
     </script>
 </body>
 </html>
