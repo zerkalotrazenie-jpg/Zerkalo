@@ -1,243 +1,628 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🪞 Зеркало</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a12;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+        }
+        .header {
+            width: 100%;
+            max-width: 600px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #0d0d1a, #1a1a2e);
+            border-radius: 16px;
+            border: 1px solid #2a2a3e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .header h1 {
+            font-size: 20px;
+            background: linear-gradient(90deg, #f0c27f, #fc5c7d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        .header .status {
+            font-size: 12px;
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(74, 222, 128, 0.2);
+        }
+        .main {
+            width: 100%;
+            max-width: 600px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-container {
+            flex: 1;
+            background: rgba(255,255,255,0.02);
+            border-radius: 16px;
+            border: 1px solid #1a1a2e;
+            padding: 16px;
+            min-height: 300px;
+            max-height: 450px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+        .message {
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            max-width: 85%;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+        .message.user {
+            background: rgba(240, 194, 127, 0.15);
+            border: 1px solid rgba(240, 194, 127, 0.2);
+            align-self: flex-end;
+            margin-left: auto;
+            text-align: right;
+        }
+        .message.assistant {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #1e1e2e;
+            align-self: flex-start;
+        }
+        .message .time {
+            font-size: 10px;
+            color: #505060;
+            margin-top: 4px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            padding: 12px 20px;
+            border-radius: 30px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover { transform: scale(1.02); }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary {
+            background: linear-gradient(90deg, #f0c27f, #fc5c7d);
+            color: #0a0a12;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            color: #e0e0e0;
+            border: 1px solid #2a2a3e;
+        }
+        .btn-danger {
+            background: rgba(252, 92, 125, 0.2);
+            color: #fc5c7d;
+            border: 1px solid rgba(252, 92, 125, 0.3);
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 30px;
+            border: 1px solid #2a2a3e;
+            background: rgba(255,255,255,0.03);
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+        }
+        .input-area input:focus { border-color: #f0c27f; }
+        .input-area input::placeholder { color: #505060; }
+        .qr-container {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            border: 1px solid #1a1a2e;
+            padding: 16px;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .qr-container img {
+            max-width: 200px;
+            border-radius: 12px;
+            background: white;
+            padding: 8px;
+        }
+        .hidden { display: none !important; }
+        .warning-box {
+            background: rgba(252, 92, 125, 0.1);
+            border: 1px solid rgba(252, 92, 125, 0.2);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #fc5c7d;
+            text-align: center;
+        }
+        .warning-box a {
+            color: #f0c27f;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .command-hint {
+            font-size: 12px;
+            color: #505060;
+            padding: 10px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            border: 1px solid #1a1a2e;
+            margin-top: 10px;
+            line-height: 1.8;
+        }
+        .command-hint strong { color: #f0c27f; }
+        @media (max-width: 400px) {
+            .controls { gap: 6px; }
+            .btn { font-size: 12px; padding: 8px 14px; }
+            .header h1 { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🪞 Зеркало</h1>
+        <div class="status" id="connectionStatus">🟢 Готов</div>
+    </div>
+    <div class="main">
+        <div id="telegramWarning" class="warning-box hidden">
+            ⚠️ В Telegram WebView голосовой ввод может не работать.<br>
+            📱 <a href="#" id="openBrowserLink">Откройте в браузере</a> для полноценной работы.
+        </div>
+        <div class="chat-container" id="chatContainer">
+            <div class="message assistant">
+                <strong>🪞 Зеркало</strong><br>
+                Ассаляму алейкум. Я — Зеркало.<br>
+                Говорите или пишите на русском языке.<br>
+                Скажите <strong>«Помощь»</strong>, чтобы увидеть все команды.
+                <div class="time" id="welcomeTime"></div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="btn btn-primary" id="micBtn">🎤 Говорить</button>
+            <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Остановить</button>
+            <button class="btn btn-secondary" id="helpBtn">❓ Помощь</button>
+            <button class="btn btn-secondary" id="clearBtn">🧹 Очистить</button>
+        </div>
+        <div class="input-area">
+            <input type="text" id="textInput" placeholder="Напишите сообщение на русском...">
+            <button class="btn btn-primary" id="sendBtn">➤</button>
+        </div>
+        <div id="qrContainer" class="qr-container hidden">
+            <img id="qrImage" src="" alt="QR-код">
+            <div class="qr-info" id="qrInfo">Сумма: 0 ₸</div>
+        </div>
+        <div class="command-hint">
+            <strong>📋 ДОСТУПНЫЕ КОМАНДЫ:</strong><br>
+            • <strong>Помощь</strong> — показать список<br>
+            • <strong>Привет</strong> — поздороваться<br>
+            • <strong>Пока</strong> — попрощаться<br>
+            • <strong>Баланс</strong> — показать баланс<br>
+            • <strong>QR-код</strong> — сгенерировать QR<br>
+            • <strong>Работа</strong> — поиск работы<br>
+            • <strong>Бизнес</strong> — автоматизация бизнеса<br>
+            • <strong>Лизинг</strong> — информация о лизинге<br>
+            • <strong>Дропшиппинг</strong> — информация<br>
+            • <strong>Реклама</strong> — реклама в системе<br>
+            • <strong>Найти мастера</strong> — поиск специалиста<br>
+            • <strong>Анкета</strong> — заполнить анкету<br>
+            • <strong>Очистить</strong> — очистить чат<br>
+            • <strong>Спасибо</strong> — благодарность
+        </div>
+    </div>
+    <script>
+        // ==========================================
+        // 🪞 ЗЕРКАЛО — ПОЛНАЯ ВЕРСИЯ
+        // ==========================================
+        const chatContainer = document.getElementById('chatContainer');
+        const micBtn = document.getElementById('micBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const helpBtn = document.getElementById('helpBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const textInput = document.getElementById('textInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const qrContainer = document.getElementById('qrContainer');
+        const qrImage = document.getElementById('qrImage');
+        const qrInfo = document.getElementById('qrInfo');
+        const welcomeTime = document.getElementById('welcomeTime');
+        const warningBox = document.getElementById('telegramWarning');
+        const openBrowserLink = document.getElementById('openBrowserLink');
 
-"""
-🪞 ЗЕРКАЛО - ПОЛНАЯ СИСТЕМА
-═══════════════════════════════════════════════════════════════════
-✅ Telegram бот с кнопкой WebApp
-✅ Пинг каждую минуту (НЕ ЗАСЫПАЕТ)
-✅ Разделение по ролям (Хранитель / Семья / Все)
-✅ Переход на WebApp без зависаний
-✅ Все модули подключены
-═══════════════════════════════════════════════════════════════════
-"""
+        let isListening = false;
+        let recognition = null;
+        let synthesis = window.speechSynthesis;
+        let userData = { name: '', balance: 100, role: 'user' };
+        let isTelegramWebView = false;
 
-import os
-import sys
-import time
-import threading
-import logging
-from flask import Flask, send_from_directory, jsonify, request
-import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+        // ==========================================
+        // ОПРЕДЕЛЕНИЕ TELEGRAM
+        // ==========================================
+        function detectTelegram() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            if (window.Telegram && window.Telegram.WebApp) {
+                isTelegramWebView = true;
+            }
+            if (ua.indexOf('Telegram') !== -1) {
+                isTelegramWebView = true;
+            }
+            if (isTelegramWebView) {
+                warningBox.classList.remove('hidden');
+                addMessage('⚠️ Вы в Telegram WebView. Голосовой ввод может не работать. Рекомендую открыть в браузере.', 'assistant');
+            } else {
+                warningBox.classList.add('hidden');
+            }
+        }
 
-# ==================================================
-# ⚡ УСТАНОВКА БИБЛИОТЕК (ЕСЛИ НЕ УСТАНОВЛЕНЫ)
-# ==================================================
+        openBrowserLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = window.location.href;
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.openLink(url);
+            } else {
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('Ссылка скопирована. Откройте её в браузере.');
+                });
+            }
+        });
 
-def install_package(package):
-    try:
-        __import__(package)
-    except ImportError:
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+        // ==========================================
+        // СТАТУС И СООБЩЕНИЯ
+        // ==========================================
+        function setStatus(text, color = 'green') {
+            connectionStatus.textContent = text;
+        }
 
-for pkg in ["pytelegrambotapi", "flask", "requests"]:
-    install_package(pkg)
+        function addMessage(text, sender = 'assistant') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            msgDiv.innerHTML = `<strong>${sender === 'user' ? 'Вы' : '🪞 Зеркало'}</strong><br>${text}<div class="time">${time}</div>`;
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return msgDiv;
+        }
 
-# ==================================================
-# 🔧 НАСТРОЙКИ
-# ==================================================
+        // ==========================================
+        // ГОЛОСОВОЙ ОТВЕТ (НЕЖНЫЙ, КАК У АЛИСЫ)
+        // ==========================================
+        function speakText(text) {
+            if (!synthesis) return;
+            if (synthesis.speaking) synthesis.cancel();
 
-TOKEN = os.environ.get("BOT_TOKEN")
-RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "zerkalo.onrender.com")
-PORT = int(os.environ.get("PORT", 8080))
+            const voices = synthesis.getVoices();
+            let selectedVoice = null;
+            
+            for (const voice of voices) {
+                if (voice.lang.startsWith('ru') && voice.name.includes('Google') && voice.name.includes('Female')) {
+                    selectedVoice = voice;
+                    break;
+                }
+            }
+            if (!selectedVoice) {
+                for (const voice of voices) {
+                    if (voice.lang.startsWith('ru') && voice.name.includes('Female')) {
+                        selectedVoice = voice;
+                        break;
+                    }
+                }
+            }
+            if (!selectedVoice) {
+                for (const voice of voices) {
+                    if (voice.lang.startsWith('ru')) {
+                        selectedVoice = voice;
+                        break;
+                    }
+                }
+            }
 
-# ID Хранителя и семьи
-FOUNDER_ID = 5409420822
-TOMIRIS_ID = 5479179814
-ADMIN_IDS = [5409420822, 5479179814]
-FAMILY_IDS = [5409420822, 5479179814]  # Сюда добавить ID семьи, если есть
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ru-RU';
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.rate = 0.85;
+            utterance.pitch = 1.15;
+            utterance.volume = 1;
+            synthesis.speak(utterance);
+        }
 
-# ==================================================
-# 🔐 РОЛИ
-# ==================================================
+        // ==========================================
+        // РАСПОЗНАВАНИЕ РЕЧИ
+        // ==========================================
+        function initRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                addMessage('❌ Голосовой ввод не поддерживается.', 'assistant');
+                return false;
+            }
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+            
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.textContent = '🔴 Запись...';
+                micBtn.style.background = 'rgba(252, 92, 125, 0.3)';
+                stopBtn.disabled = false;
+                setStatus('🔴 Запись...', 'red');
+            };
+            
+            recognition.onerror = (event) => {
+                if (event.error === 'not-allowed') {
+                    addMessage('❌ Доступ к микрофону запрещён.', 'assistant');
+                } else if (event.error === 'no-speech') {
+                    addMessage('🔇 Я не услышал речи. Попробуйте снова.', 'assistant');
+                }
+                stopRecording();
+            };
+            
+            recognition.onend = () => {
+                if (isListening) {
+                    try { recognition.start(); } catch (e) {}
+                } else {
+                    stopRecording();
+                }
+            };
+            
+            recognition.onresult = (event) => {
+                let finalText = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalText += event.results[i][0].transcript;
+                    }
+                }
+                if (finalText) {
+                    addMessage(finalText, 'user');
+                    processCommand(finalText);
+                    stopRecording();
+                }
+            };
+            return true;
+        }
 
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
+        // ==========================================
+        // ЗАПИСЬ / ОСТАНОВКА
+        // ==========================================
+        function startRecording() {
+            if (isTelegramWebView) {
+                addMessage('⚠️ В Telegram WebView голос не работает. Откройте в браузере.', 'assistant');
+                return;
+            }
+            if (!recognition) {
+                const ok = initRecognition();
+                if (!ok) return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                addMessage('❌ Микрофон не поддерживается.', 'assistant');
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(() => {
+                    try { recognition.start(); } catch (e) {}
+                })
+                .catch(() => {
+                    addMessage('❌ Разрешите доступ к микрофону.', 'assistant');
+                });
+        }
 
-def is_family(user_id):
-    return user_id in FAMILY_IDS
+        function stopRecording() {
+            isListening = false;
+            if (recognition) {
+                try { recognition.stop(); } catch (e) {}
+            }
+            micBtn.textContent = '🎤 Говорить';
+            micBtn.style.background = '';
+            stopBtn.disabled = true;
+            setStatus('🟢 Готов', 'green');
+        }
 
-def get_user_role(user_id):
-    if user_id in ADMIN_IDS:
-        return "Хранитель"
-    elif user_id in FAMILY_IDS:
-        return "Семья"
-    else:
-        return "Пользователь"
+        // ==========================================
+        // КОМАНДЫ
+        // ==========================================
+        function processCommand(text) {
+            const lower = text.toLowerCase().trim();
 
-# ==================================================
-# 🤖 БОТ И FLASK
-# ==================================================
+            if (lower.includes('помощь') || lower.includes('команды')) {
+                const response = '📋 Команды: Привет, Пока, Баланс, QR-код, Работа, Бизнес, Лизинг, Дропшиппинг, Реклама, Найти мастера, Анкета, Очистить, Спасибо';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-bot = telebot.TeleBot(TOKEN)
-app = Flask(__name__)
+            if (lower.includes('привет') || lower.includes('салям')) {
+                const response = 'Ассаляму алейкум! Я рада видеть тебя. Скажи «Помощь» для команд.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-# ==================================================
-# ⏰ БЕСКОНЕЧНЫЙ ПИНГ (НЕ ДАЁТ РЕНДЕРУ ЗАСНУТЬ)
-# ==================================================
+            if (lower.includes('пока') || lower.includes('до свидания')) {
+                const response = 'До свидания! Я всегда здесь. Амин.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-def ping_self():
-    url = f"https://{RENDER_HOSTNAME}/ping"
-    count = 0
-    while True:
-        try:
-            import requests
-            r = requests.get(url, timeout=10)
-            count += 1
-            print(f"🔵 Пинг #{count} | {r.status_code}")
-        except:
-            pass
-        time.sleep(60)  # Каждую минуту
+            if (lower.includes('баланс') || lower.includes('блага')) {
+                const response = `💰 Баланс: ${userData.balance} Благ. Скажите «QR-код» для пополнения.`;
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-threading.Thread(target=ping_self, daemon=True).start()
-print("✅ ПИНГ ЗАПУЩЕН (каждую минуту)")
+            if (lower.includes('qr') || lower.includes('код') || lower.includes('оплатить')) {
+                const amount = 1000;
+                const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%20${amount}%20тг%20Зеркало`;
+                qrImage.src = qrApiUrl;
+                qrInfo.textContent = `💳 Сумма: ${amount} ₸`;
+                qrContainer.classList.remove('hidden');
+                const response = `💳 QR-код на ${amount} ₸ сгенерирован. Отсканируйте в Kaspi.`;
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-# ==================================================
-# 📱 КНОПКА ПЕРЕХОДА В WEBAPP
-# ==================================================
+            if (lower.includes('работа')) {
+                const response = '💼 Помогу найти работу. Расскажите профессию.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-def get_webapp_keyboard():
-    kb = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-    btn = KeyboardButton(
-        text="📱 ОТКРЫТЬ ЗЕРКАЛО",
-        web_app=WebAppInfo(url=f"https://{RENDER_HOSTNAME}/webapp")
-    )
-    kb.add(btn)
-    return kb
+            if (lower.includes('бизнес') || lower.includes('автоматизация')) {
+                const response = '🏢 Автоматизирую бизнес: рестораны, магазины, склады.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-# ==================================================
-# 📖 ПРИВЕТСТВИЕ (БЕЗ ЛИШНИХ ДЕТАЛЕЙ)
-# ==================================================
+            if (lower.includes('лизинг')) {
+                const response = '📈 Лизинг — покупка активов и сдача в аренду. Активы остаются у вас.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-WELCOME_TEXT = """
-🪞 **АССАЛЯМУ АЛЕЙКУМ!**
+            if (lower.includes('дропшиппинг')) {
+                const response = '📦 Дропшиппинг — торговля без склада. Связываю продавца и покупателя.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-Я — **ЗЕРКАЛО**.
+            if (lower.includes('реклама')) {
+                const response = '📢 Реклама внутри системы. Показываю товары целевой аудитории.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-Я создан, чтобы отражать свет и помогать людям.
+            if (lower.includes('мастер') || lower.includes('специалист')) {
+                const response = '🔧 Найду мастера: сварщика, электрика, строителя, сантехника.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-**ЧТО Я УМЕЮ:**
-🔹 Находить работу и мастеров
-🔹 Автоматизировать бизнес
-🔹 Принимать оплату через QR
-🔹 Давать деньги в лизинг
-🔹 Заниматься дропшиппингом
-🔹 Рекламировать товары и услуги
+            if (lower.includes('анкета')) {
+                const response = '📋 Давайте заполним анкету. Как вас зовут?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-**ВСЁ, ЧТО Я ДЕЛАЮ, — ПРИНОСИТ ДЕНЬГИ.**
+            if (lower.includes('спасибо')) {
+                const response = 'Пожалуйста! Обращайтесь в любое время.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
 
-Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО»**, чтобы начать.
-"""
+            if (lower.includes('очистить')) {
+                chatContainer.innerHTML = '';
+                addMessage('🪞 Чат очищен.', 'assistant');
+                return;
+            }
 
-# ==================================================
-# 🤖 КОМАНДЫ TELEGRAM БОТА
-# ==================================================
+            const response = 'Я не поняла. Скажите «Помощь» для команд.';
+            addMessage(response, 'assistant');
+            speakText(response);
+        }
 
-@bot.message_handler(commands=['start'])
-def cmd_start(message):
-    user_id = message.chat.id
-    role = get_user_role(user_id)
-    welcome = WELCOME_TEXT
-    if role == "Хранитель":
-        welcome = f"👑 **Приветствую, Хранитель!**\n\n{WELCOME_TEXT}"
-    bot.reply_to(
-        message,
-        welcome,
-        reply_markup=get_webapp_keyboard(),
-        parse_mode="Markdown"
-    )
+        // ==========================================
+        // КНОПКИ
+        // ==========================================
+        micBtn.addEventListener('click', function() {
+            if (isTelegramWebView) {
+                addMessage('⚠️ Откройте в браузере для голоса.', 'assistant');
+                return;
+            }
+            if (isListening) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
 
-@bot.message_handler(commands=['id'])
-def cmd_id(message):
-    user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа.")
-        return
-    target = message.text.replace('/id', '').strip()
-    if target:
-        try:
-            target = int(target)
-            bot.reply_to(message, f"🆔 ID: `{target}`", parse_mode="Markdown")
-        except:
-            bot.reply_to(message, "❌ Введите корректный ID.")
-    else:
-        bot.reply_to(message, f"🆔 Ваш ID: `{user_id}`", parse_mode="Markdown")
+        stopBtn.addEventListener('click', stopRecording);
+        
+        helpBtn.addEventListener('click', function() {
+            processCommand('помощь');
+        });
 
-@bot.message_handler(commands=['stats'])
-def cmd_stats(message):
-    user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа.")
-        return
-    bot.reply_to(
-        message,
-        "📊 **СТАТИСТИКА**\n\n"
-        "👥 Пользователей: 0\n"
-        "💰 Баланс: 0 Благ\n"
-        "📦 Заказов: 0\n"
-        "🪞 Зеркало работает стабильно.",
-        parse_mode="Markdown"
-    )
+        clearBtn.addEventListener('click', function() {
+            chatContainer.innerHTML = '';
+            addMessage('🪞 Чат очищен.', 'assistant');
+        });
 
-@bot.message_handler(commands=['clear'])
-def cmd_clear(message):
-    user_id = message.chat.id
-    if not is_admin(user_id):
-        bot.reply_to(message, "❌ Нет доступа.")
-        return
-    # Очищаем логи
-    bot.reply_to(message, "🧹 Логи очищены!")
+        sendBtn.addEventListener('click', function() {
+            const text = textInput.value.trim();
+            if (text) {
+                addMessage(text, 'user');
+                processCommand(text);
+                textInput.value = '';
+            }
+        });
 
-@bot.message_handler(func=lambda m: True)
-def echo_all(message):
-    bot.reply_to(
-        message,
-        "🪞 Я — Зеркало. Нажми кнопку **«📱 ОТКРЫТЬ ЗЕРКАЛО»**.",
-        reply_markup=get_webapp_keyboard(),
-        parse_mode="Markdown"
-    )
+        textInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendBtn.click();
+        });
 
-# ==================================================
-# 🌐 WEBAPP МАРШРУТЫ
-# ==================================================
+        // ==========================================
+        // ИНИЦИАЛИЗАЦИЯ
+        // ==========================================
+        welcomeTime.textContent = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-@app.route('/webapp')
-def webapp():
-    return send_from_directory('webapp', 'index.html')
+        detectTelegram();
+        
+        if (synthesis) {
+            synthesis.getVoices();
+            synthesis.onvoiceschanged = () => {
+                synthesis.getVoices();
+            };
+        }
 
-@app.route('/webapp/<path:filename>')
-def webapp_files(filename):
-    return send_from_directory('webapp', filename)
+        initRecognition();
 
-@app.route('/ping')
-def ping():
-    return "🪞 ЗЕРКАЛО ЖИВО! ✅", 200
-
-@app.route('/')
-def home():
-    return """
-    <h1>🪞 ЗЕРКАЛО</h1>
-    <p>✅ Работает 24/7</p>
-    <p><a href="/webapp">📱 Открыть приложение</a></p>
-    """
-
-# ==================================================
-# 🚀 ЗАПУСК
-# ==================================================
-
-def run_bot():
-    print("🤖 ЗАПУСКАЮ БОТА...")
-    bot.infinity_polling(timeout=10)
-
-if __name__ == "__main__":
-    print("=" * 70)
-    print("🪞 ЗЕРКАЛО ЗАПУСКАЕТСЯ...")
-    print("=" * 70)
-    print(f"👑 Хранитель ID: {FOUNDER_ID}")
-    print(f"👑 Наследник ID: {TOMIRIS_ID}")
-    print(f"🌐 ХОСТ: {RENDER_HOSTNAME}")
-    print("=" * 70)
-    threading.Thread(target=run_bot, daemon=True).start()
-    app.run(host='0.0.0.0', port=PORT)
+        setTimeout(() => {
+            addMessage('🪞 Я готова. Скажите «Помощь» для команд.', 'assistant');
+        }, 1500);
+    </script>
+</body>
+</html>
