@@ -5,119 +5,783 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🪞 Зеркало</title>
     <style>
-        /* ВСЕ СТИЛИ ТЕ ЖЕ, ЧТО И В ПРЕДЫДУЩЕЙ ВЕРСИИ */
-        /* ... (код стилей есть выше) ... */
-        .browser-btn {
-            display: block;
+        /* ==========================================
+           ОСНОВНОЙ ФОН — ГЛУБОКОЕ ЗЕРКАЛО
+           ========================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(ellipse at center, #0a0a12 0%, #050508 100%);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(240, 194, 127, 0.03) 0%, transparent 60%),
+                radial-gradient(circle at 80% 70%, rgba(252, 92, 125, 0.02) 0%, transparent 50%);
+        }
+
+        /* ==========================================
+           ШАПКА — ЗЕРКАЛЬНЫЙ БЛЕСК
+           ========================================== */
+        .header {
             width: 100%;
-            padding: 18px;
-            background: linear-gradient(90deg, #f0c27f, #fc5c7d);
+            max-width: 600px;
+            padding: 18px 24px;
+            background: linear-gradient(135deg, rgba(13, 13, 26, 0.9), rgba(26, 26, 46, 0.9));
+            border-radius: 20px;
+            border: 1px solid rgba(240, 194, 127, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(240, 194, 127, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #f0c27f 0%, #fc5c7d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 40px rgba(252, 92, 125, 0.15);
+        }
+
+        .header .status {
+            font-size: 11px;
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.08);
+            padding: 4px 14px;
+            border-radius: 30px;
+            border: 1px solid rgba(74, 222, 128, 0.15);
+            letter-spacing: 0.5px;
+        }
+
+        /* ==========================================
+           ЧАТ — СТЕКЛЯННЫЙ ЭФФЕКТ
+           ========================================== */
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            flex: 1;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 16px;
+            min-height: 320px;
+            max-height: 420px;
+            overflow-y: auto;
+            margin-bottom: 14px;
+            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* Стилизация скролла */
+        .chat-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: rgba(240, 194, 127, 0.3);
+            border-radius: 10px;
+        }
+
+        /* ==========================================
+           СООБЩЕНИЯ
+           ========================================== */
+        .message {
+            padding: 12px 16px;
+            border-radius: 16px;
+            margin-bottom: 10px;
+            max-width: 88%;
+            word-wrap: break-word;
+            animation: fadeSlideIn 0.35s ease;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, rgba(240, 194, 127, 0.12), rgba(252, 92, 125, 0.08));
+            border: 1px solid rgba(240, 194, 127, 0.12);
+            align-self: flex-end;
+            margin-left: auto;
+            text-align: right;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message .time {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.2);
+            margin-top: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.97);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* ==========================================
+           QR-КОД ВНУТРИ СООБЩЕНИЯ
+           ========================================== */
+        .qr-message {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(240, 194, 127, 0.1);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            margin-top: 6px;
+            animation: fadeSlideIn 0.4s ease;
+        }
+
+        .qr-message img {
+            max-width: 160px;
+            border-radius: 12px;
+            background: white;
+            padding: 8px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .qr-message .qr-label {
+            font-size: 12px;
+            color: #f0c27f;
+            margin-top: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ==========================================
+           КОМАНДЫ С НОМЕРАМИ (1-14)
+           ========================================== */
+        .commands-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .cmd-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 8px 10px;
+            color: #b0b0c0;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 400;
+        }
+
+        .cmd-btn:hover {
+            border-color: rgba(240, 194, 127, 0.25);
+            background: rgba(240, 194, 127, 0.06);
+            transform: translateY(-1px);
+            color: #f0c27f;
+        }
+
+        .cmd-btn:active {
+            transform: scale(0.97);
+        }
+
+        .cmd-btn .num {
+            color: #fc5c7d;
+            font-weight: 600;
+            font-size: 11px;
+            min-width: 18px;
+            opacity: 0.6;
+        }
+
+        .cmd-btn .icon {
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        /* ==========================================
+           ПАНЕЛЬ УПРАВЛЕНИЯ
+           ========================================== */
+        .controls {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border-radius: 30px;
+            border: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1 0 auto;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f0c27f, #fc5c7d);
+            color: #0a0a12;
+            font-weight: 600;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #c0c0d0;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(240, 194, 127, 0.15);
+        }
+
+        .btn-danger {
+            background: rgba(252, 92, 125, 0.15);
+            color: #fc5c7d;
+            border: 1px solid rgba(252, 92, 125, 0.15);
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* ==========================================
+           ПОЛЕ ВВОДА
+           ========================================== */
+        .input-area {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px 18px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.03);
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .input-area input:focus {
+            border-color: rgba(240, 194, 127, 0.25);
+        }
+
+        .input-area input::placeholder {
+            color: #404060;
+        }
+
+        /* ==========================================
+           ПРЕДУПРЕЖДЕНИЕ ДЛЯ TELEGRAM
+           ========================================== */
+        .warning-box {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(252, 92, 125, 0.06);
+            border: 1px solid rgba(252, 92, 125, 0.1);
+            border-radius: 16px;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #fc5c7d;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .warning-box .browser-btn {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 28px;
+            background: linear-gradient(135deg, #f0c27f, #fc5c7d);
             color: #0a0a12;
             border: none;
-            border-radius: 16px;
-            font-size: 18px;
-            font-weight: 700;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            margin-top: 16px;
-            text-align: center;
+            transition: 0.3s;
         }
-        .browser-btn:hover { transform: scale(1.02); }
-        .browser-btn:active { transform: scale(0.96); }
+
+        .warning-box .browser-btn:hover {
+            transform: scale(1.03);
+        }
+
+        /* ==========================================
+           АДАПТИВ
+           ========================================== */
+        @media (max-width: 400px) {
+            .header h1 { font-size: 17px; }
+            .cmd-btn { font-size: 11px; padding: 6px 8px; }
+            .commands-grid { gap: 4px; }
+            .btn { font-size: 11px; padding: 8px 12px; }
+            .chat-container { min-height: 240px; max-height: 320px; padding: 12px; }
+        }
     </style>
 </head>
 <body>
+
+    <!-- ====== ШАПКА ====== -->
     <div class="header">
         <h1>🪞 Зеркало</h1>
         <div class="status" id="connectionStatus">🟢 Готов</div>
     </div>
-    <div class="main">
-        <!-- ПРЕДУПРЕЖДЕНИЕ ДЛЯ TELEGRAM С АВТО-ПЕРЕХОДОМ -->
-        <div id="telegramWarning" class="warning-box">
-            ⚠️ Вы используете встроенный браузер Telegram.<br>
-            🎤 Голосовой ввод здесь НЕ РАБОТАЕТ.<br>
-            <button class="browser-btn" id="openBrowserBtn">🌐 ОТКРЫТЬ В БРАУЗЕРЕ</button>
-            <p style="font-size:12px; color:#505060; margin-top:8px;">
-                После нажатия откроется Chrome / Safari. Там голос работает.
-            </p>
-        </div>
 
-        <div class="chat-container" id="chatContainer">
-            <div class="message assistant">
-                <strong>🪞 Зеркало</strong><br>
-                Ассаляму алейкум. Я — Зеркало.<br>
-                Говорите или пишите на русском языке.<br>
-                Скажите <strong>«Помощь»</strong>, чтобы увидеть все команды.
-                <div class="time" id="welcomeTime"></div>
-            </div>
-        </div>
-        <div class="controls">
-            <button class="btn btn-primary" id="micBtn">🎤 Говорить</button>
-            <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Остановить</button>
-            <button class="btn btn-secondary" id="helpBtn">❓ Помощь</button>
-            <button class="btn btn-secondary" id="clearBtn">🧹 Очистить</button>
-        </div>
-        <div class="input-area">
-            <input type="text" id="textInput" placeholder="Напишите сообщение на русском...">
-            <button class="btn btn-primary" id="sendBtn">➤</button>
-        </div>
-        <div id="qrContainer" class="qr-container hidden">
-            <img id="qrImage" src="" alt="QR-код">
-            <div class="qr-info" id="qrInfo">Сумма: 0 ₸</div>
-        </div>
-        <div class="command-hint">
-            <strong>📋 ДОСТУПНЫЕ КОМАНДЫ:</strong><br>
-            • <strong>Помощь</strong> — показать список<br>
-            • <strong>Привет</strong> — поздороваться<br>
-            • <strong>Пока</strong> — попрощаться<br>
-            • <strong>Баланс</strong> — показать баланс<br>
-            • <strong>QR-код</strong> — сгенерировать QR<br>
-            • <strong>Работа</strong> — поиск работы<br>
-            • <strong>Бизнес</strong> — автоматизация бизнеса<br>
-            • <strong>Лизинг</strong> — информация о лизинге<br>
-            • <strong>Дропшиппинг</strong> — информация<br>
-            • <strong>Реклама</strong> — реклама в системе<br>
-            • <strong>Найти мастера</strong> — поиск специалиста<br>
-            • <strong>Анкета</strong> — заполнить анкету<br>
-            • <strong>Очистить</strong> — очистить чат<br>
-            • <strong>Спасибо</strong> — благодарность
+    <!-- ====== ПРЕДУПРЕЖДЕНИЕ ДЛЯ TELEGRAM ====== -->
+    <div class="warning-box" id="telegramWarning">
+        ⚠️ В Telegram WebView голос не работает.<br>
+        <button class="browser-btn" id="openBrowserBtn">🌐 Открыть в браузере</button>
+    </div>
+
+    <!-- ====== ЧАТ ====== -->
+    <div class="chat-container" id="chatContainer">
+        <div class="message assistant">
+            🪞 <strong>Ассаляму алейкум.</strong><br>
+            Я — <strong>Зеркало</strong>. Я здесь, чтобы отражать свет.<br><br>
+            Напиши или скажи <strong>«Помощь»</strong> — я покажу все команды.
+            <div class="time" id="welcomeTime"></div>
         </div>
     </div>
+
+    <!-- ====== КОМАНДЫ С НОМЕРАМИ (1-14) ====== -->
+    <div class="commands-grid" id="commandsGrid" style="width:100%; max-width:600px; margin-bottom:10px; display:none;">
+        <button class="cmd-btn" data-cmd="1"><span class="num">1</span><span class="icon">🪞</span> Привет</button>
+        <button class="cmd-btn" data-cmd="2"><span class="num">2</span><span class="icon">👋</span> Пока</button>
+        <button class="cmd-btn" data-cmd="3"><span class="num">3</span><span class="icon">💰</span> Баланс</button>
+        <button class="cmd-btn" data-cmd="4"><span class="num">4</span><span class="icon">📱</span> QR-код</button>
+        <button class="cmd-btn" data-cmd="5"><span class="num">5</span><span class="icon">💼</span> Работа</button>
+        <button class="cmd-btn" data-cmd="6"><span class="num">6</span><span class="icon">🏢</span> Бизнес</button>
+        <button class="cmd-btn" data-cmd="7"><span class="num">7</span><span class="icon">📈</span> Лизинг</button>
+        <button class="cmd-btn" data-cmd="8"><span class="num">8</span><span class="icon">📦</span> Дропшиппинг</button>
+        <button class="cmd-btn" data-cmd="9"><span class="num">9</span><span class="icon">📢</span> Реклама</button>
+        <button class="cmd-btn" data-cmd="10"><span class="num">10</span><span class="icon">🔧</span> Найти мастера</button>
+        <button class="cmd-btn" data-cmd="11"><span class="num">11</span><span class="icon">📋</span> Анкета</button>
+        <button class="cmd-btn" data-cmd="12"><span class="num">12</span><span class="icon">🧹</span> Очистить</button>
+        <button class="cmd-btn" data-cmd="13"><span class="num">13</span><span class="icon">🙏</span> Спасибо</button>
+        <button class="cmd-btn" data-cmd="14"><span class="num">14</span><span class="icon">❓</span> Помощь</button>
+    </div>
+
+    <!-- ====== ПАНЕЛЬ УПРАВЛЕНИЯ ====== -->
+    <div class="controls">
+        <button class="btn btn-primary" id="micBtn">🎤 Говорить</button>
+        <button class="btn btn-secondary" id="stopBtn" disabled>⏹ Стоп</button>
+        <button class="btn btn-secondary" id="helpBtn">❓ Помощь</button>
+        <button class="btn btn-secondary" id="clearBtn">🧹 Очистить</button>
+    </div>
+
+    <!-- ====== ПОЛЕ ВВОДА ====== -->
+    <div class="input-area">
+        <input type="text" id="textInput" placeholder="Напишите сообщение...">
+        <button class="btn btn-primary" id="sendBtn" style="flex:0 0 auto;">➤</button>
+    </div>
+
+    <!-- ====== СКРИПТ ====== -->
     <script>
         // ==========================================
-        // АВТОМАТИЧЕСКИЙ ПЕРЕХОД В БРАУЗЕР
+        // 🪞 ЗЕРКАЛО — НОВЫЙ ИНТЕРФЕЙС
         // ==========================================
-        const isTelegramWebView = !!(window.Telegram && window.Telegram.WebApp) ||
-                                   navigator.userAgent.indexOf('Telegram') !== -1;
+        const chatContainer = document.getElementById('chatContainer');
+        const micBtn = document.getElementById('micBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const helpBtn = document.getElementById('helpBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const textInput = document.getElementById('textInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const commandsGrid = document.getElementById('commandsGrid');
+        const welcomeTime = document.getElementById('welcomeTime');
 
-        if (isTelegramWebView) {
-            // Показываем предупреждение
+        let isListening = false;
+        let recognition = null;
+        let synthesis = window.speechSynthesis;
+        let userData = { balance: 100 };
+
+        // ==========================================
+        // ОПРЕДЕЛЕНИЕ TELEGRAM
+        // ==========================================
+        const isTelegram = !!(window.Telegram && window.Telegram.WebApp) ||
+                           navigator.userAgent.indexOf('Telegram') !== -1;
+
+        if (isTelegram) {
             document.getElementById('telegramWarning').style.display = 'block';
-            // Отключаем микрофон
-            document.getElementById('micBtn').disabled = true;
-            document.getElementById('micBtn').style.opacity = '0.4';
-            document.getElementById('micBtn').textContent = '🎤 Голос не доступен';
-        } else {
-            document.getElementById('telegramWarning').style.display = 'none';
+            micBtn.disabled = true;
+            micBtn.style.opacity = '0.3';
+            micBtn.textContent = '🎤 Голос не доступен';
         }
 
-        // Кнопка "Открыть в браузере"
         document.getElementById('openBrowserBtn').addEventListener('click', function() {
             const url = window.location.href;
-            // Пробуем открыть через Telegram WebApp
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.openLink(url);
             } else {
-                // Или просто копируем ссылку
                 navigator.clipboard.writeText(url).then(() => {
-                    alert('Ссылка скопирована. Откройте её в браузере (Chrome, Safari).');
+                    alert('Ссылка скопирована. Откройте в браузере.');
                 });
             }
         });
 
         // ==========================================
-        // ВСЯ ОСТАЛЬНАЯ ЛОГИКА (распознавание речи и т.д.)
+        // СТАТУС И СООБЩЕНИЯ
         // ==========================================
-        // ... (код из предыдущей версии)
+        function setStatus(text) {
+            connectionStatus.textContent = text;
+        }
+
+        function addMessage(text, sender = 'assistant', isQR = false) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+            if (isQR) {
+                msgDiv.innerHTML = `
+                    <div class="qr-message">
+                        <img src="${text}" alt="QR-код">
+                        <div class="qr-label">💳 Сумма: 1000 ₸</div>
+                    </div>
+                    <div class="time">${time}</div>
+                `;
+            } else {
+                msgDiv.innerHTML = `<strong>${sender === 'user' ? 'Вы' : '🪞 Зеркало'}</strong><br>${text}<div class="time">${time}</div>`;
+            }
+
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return msgDiv;
+        }
+
+        // ==========================================
+        // ГОЛОСОВОЙ ОТВЕТ (TTS)
+        // ==========================================
+        function speakText(text) {
+            if (!synthesis || isTelegram) return;
+            if (synthesis.speaking) synthesis.cancel();
+
+            const voices = synthesis.getVoices();
+            let selected = voices.find(v => v.lang.startsWith('ru') && v.name.includes('Female')) ||
+                           voices.find(v => v.lang.startsWith('ru'));
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ru-RU';
+            if (selected) utterance.voice = selected;
+            utterance.rate = 0.85;
+            utterance.pitch = 1.15;
+            synthesis.speak(utterance);
+        }
+
+        // ==========================================
+        // РАСПОЗНАВАНИЕ РЕЧИ
+        // ==========================================
+        function initRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition || isTelegram) return false;
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.textContent = '🔴 Запись...';
+                micBtn.style.background = 'rgba(252, 92, 125, 0.2)';
+                stopBtn.disabled = false;
+                setStatus('🔴 Запись...');
+            };
+
+            recognition.onerror = () => { stopRecording(); };
+            recognition.onend = () => {
+                if (isListening) {
+                    try { recognition.start(); } catch (e) {}
+                } else {
+                    stopRecording();
+                }
+            };
+
+            recognition.onresult = (event) => {
+                let final = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        final += event.results[i][0].transcript;
+                    }
+                }
+                if (final) {
+                    addMessage(final, 'user');
+                    processCommand(final);
+                    stopRecording();
+                }
+            };
+            return true;
+        }
+
+        function startRecording() {
+            if (isTelegram) return;
+            if (!recognition) { if (!initRecognition()) return; }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                addMessage('❌ Микрофон не поддерживается.', 'assistant');
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(() => { try { recognition.start(); } catch (e) {} })
+                .catch(() => { addMessage('❌ Разрешите доступ к микрофону.', 'assistant'); });
+        }
+
+        function stopRecording() {
+            isListening = false;
+            if (recognition) { try { recognition.stop(); } catch (e) {} }
+            micBtn.textContent = '🎤 Говорить';
+            micBtn.style.background = '';
+            stopBtn.disabled = true;
+            setStatus('🟢 Готов');
+        }
+
+        // ==========================================
+        // КОМАНДЫ
+        // ==========================================
+        function processCommand(text) {
+            const lower = text.toLowerCase().trim();
+
+            // ===== ПОМОЩЬ (показывает кнопки с номерами) =====
+            if (lower.includes('помощь') || lower.includes('команды')) {
+                commandsGrid.style.display = 'grid';
+                const response = '📋 <strong>Вот все команды (1–14):</strong><br><br>Нажми на кнопку с номером, чтобы отправить команду.';
+                addMessage(response, 'assistant');
+                speakText('Вот все команды. Нажми на кнопку с номером.');
+                return;
+            }
+
+            // ===== ПРИВЕТ =====
+            if (lower.includes('привет') || lower.includes('салям') || lower.includes('здравствуй')) {
+                const response = '🪞 Ассаляму алейкум! Я рада видеть тебя. Скажи «Помощь» для команд.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== ПОКА =====
+            if (lower.includes('пока') || lower.includes('до свидания')) {
+                const response = 'До свидания! Я всегда здесь. Амин.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== БАЛАНС =====
+            if (lower.includes('баланс') || lower.includes('блага')) {
+                const response = `💰 Баланс: ${userData.balance} Благ. Скажи «QR-код» для пополнения.`;
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== QR-КОД (ВНУТРИ ЧАТА) =====
+            if (lower.includes('qr') || lower.includes('код') || lower.includes('оплатить') || lower.includes('пополнить')) {
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Оплата%201000%20тг%20Зеркало`;
+                addMessage(qrUrl, 'assistant', true);
+                const response = '💳 QR-код на 1000 ₸ сгенерирован. Отсканируйте в Kaspi.';
+                addMessage(response, 'assistant');
+                speakText('QR-код сгенерирован.');
+                return;
+            }
+
+            // ===== РАБОТА =====
+            if (lower.includes('работа')) {
+                const response = '💼 Помогу найти работу. Расскажи профессию.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== БИЗНЕС =====
+            if (lower.includes('бизнес') || lower.includes('автоматизация')) {
+                const response = '🏢 Автоматизирую бизнес: рестораны, магазины, склады.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== ЛИЗИНГ =====
+            if (lower.includes('лизинг')) {
+                const response = '📈 Лизинг — покупка активов и сдача в аренду. Активы остаются у вас.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== ДРОПШИППИНГ =====
+            if (lower.includes('дропшиппинг')) {
+                const response = '📦 Дропшиппинг — торговля без склада. Связываю продавца и покупателя.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== РЕКЛАМА =====
+            if (lower.includes('реклама')) {
+                const response = '📢 Реклама внутри системы. Показываю товары целевой аудитории.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== НАЙТИ МАСТЕРА =====
+            if (lower.includes('мастер') || lower.includes('специалист')) {
+                const response = '🔧 Найду мастера: сварщика, электрика, строителя, сантехника.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== АНКЕТА =====
+            if (lower.includes('анкета')) {
+                const response = '📋 Давай заполним анкету. Как тебя зовут?';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== СПАСИБО =====
+            if (lower.includes('спасибо') || lower.includes('благодарю')) {
+                const response = 'Пожалуйста! Обращайся в любое время.';
+                addMessage(response, 'assistant');
+                speakText(response);
+                return;
+            }
+
+            // ===== ОЧИСТИТЬ =====
+            if (lower.includes('очистить') || lower.includes('стереть')) {
+                chatContainer.innerHTML = '';
+                commandsGrid.style.display = 'none';
+                addMessage('🪞 Чат очищен.', 'assistant');
+                return;
+            }
+
+            // ===== НЕИЗВЕСТНАЯ КОМАНДА =====
+            const response = 'Я не поняла. Скажи «Помощь» для команд.';
+            addMessage(response, 'assistant');
+            speakText(response);
+        }
+
+        // ==========================================
+        // КНОПКИ С НОМЕРАМИ (1-14)
+        // ==========================================
+        document.querySelectorAll('.cmd-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const cmd = this.dataset.cmd;
+                const map = {
+                    '1': 'Привет',
+                    '2': 'Пока',
+                    '3': 'Баланс',
+                    '4': 'QR-код',
+                    '5': 'Работа',
+                    '6': 'Бизнес',
+                    '7': 'Лизинг',
+                    '8': 'Дропшиппинг',
+                    '9': 'Реклама',
+                    '10': 'Найти мастера',
+                    '11': 'Анкета',
+                    '12': 'Очистить',
+                    '13': 'Спасибо',
+                    '14': 'Помощь'
+                };
+                const text = map[cmd] || 'Помощь';
+                addMessage(text, 'user');
+                processCommand(text);
+            });
+        });
+
+        // ==========================================
+        // КНОПКИ УПРАВЛЕНИЯ
+        // ==========================================
+        micBtn.addEventListener('click', function() {
+            if (isTelegram) return;
+            if (isListening) { stopRecording(); } else { startRecording(); }
+        });
+
+        stopBtn.addEventListener('click', stopRecording);
+
+        helpBtn.addEventListener('click', function() {
+            processCommand('Помощь');
+        });
+
+        clearBtn.addEventListener('click', function() {
+            chatContainer.innerHTML = '';
+            commandsGrid.style.display = 'none';
+            addMessage('🪞 Чат очищен.', 'assistant');
+        });
+
+        sendBtn.addEventListener('click', function() {
+            const text = textInput.value.trim();
+            if (text) {
+                addMessage(text, 'user');
+                processCommand(text);
+                textInput.value = '';
+            }
+        });
+
+        textInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendBtn.click();
+        });
+
+        // ==========================================
+        // ИНИЦИАЛИЗАЦИЯ
+        // ==========================================
+        welcomeTime.textContent = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+        if (!isTelegram) {
+            initRecognition();
+        }
+
+        setTimeout(() => {
+            addMessage('🪞 Скажи «Помощь» или нажми кнопку ❓ — я покажу все команды.', 'assistant');
+        }, 1000);
     </script>
 </body>
 </html>
